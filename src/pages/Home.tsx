@@ -50,10 +50,10 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
       {/* Hero Section */}
       <section className="text-center space-y-3 max-w-[650px] mx-auto">
         <h1 className="text-3xl sm:text-4xl font-bold tracking-tight text-[#171717]">
-          Share files. They disappear in an hour.
+          Share files anywhere. Disappears in an hour.
         </h1>
         <p className="text-sm sm:text-base text-[#666666] leading-relaxed">
-          Upload a file and get a private link, sharing code, and QR code instantly. No account required.
+          Fast, free PDF host &amp; temporary file sharing. Upload documents, PDFs, or files and get a private link, 8-character code, and QR code instantly. No account required.
         </p>
       </section>
 
@@ -166,6 +166,24 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
         {!result && (
           <div className="pt-2">
             <ShareCodeLookup onLookup={onNavigateToShare} />
+          </div>
+        )}
+
+        {/* SEO Feature Highlights */}
+        {!result && (
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 pt-6 border-t border-[#D9D9D9] text-xs text-[#666666]">
+            <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
+              <span className="font-semibold text-[#171717] block">Share Anywhere</span>
+              <p>Generate instant links, scannable QR codes, and 8-character codes to share files across any phone or desktop.</p>
+            </div>
+            <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
+              <span className="font-semibold text-[#171717] block">Free PDF Host</span>
+              <p>Quick temporary hosting for PDFs, documents, images, and archives up to 50MB with zero signups or delays.</p>
+            </div>
+            <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
+              <span className="font-semibold text-[#171717] block">1-Hour Auto Purge</span>
+              <p>Files automatically self-destruct exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
+            </div>
           </div>
         )}
       </div>
