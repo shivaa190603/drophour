@@ -284,6 +284,7 @@ export async function uploadAndCreateShare(
           database_instance_id: targetNode.id,
           payment_status: pricing.isPaid ? 'paid' : 'free',
           amount_paid_inr: paymentDetails?.amountPaidInr || (pricing.isPaid ? pricing.priceInr : 0),
+          payment_id: paymentDetails?.paymentId || null,
         });
 
         if (dbError) {
@@ -312,6 +313,9 @@ export async function uploadAndCreateShare(
           file_size: file.size,
           original_filename: cleanFilename,
           database_instance_id: targetNode.id,
+          payment_status: pricing.isPaid ? 'paid' : 'free',
+          amount_paid_inr: paymentDetails?.amountPaidInr || (pricing.isPaid ? pricing.priceInr : 0),
+          payment_id: paymentDetails?.paymentId,
         };
       }
     } catch (err: unknown) {

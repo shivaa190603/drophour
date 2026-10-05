@@ -17,6 +17,7 @@ export interface FileShare {
   database_instance_id?: string;
   payment_status?: 'free' | 'paid';
   amount_paid_inr?: number;
+  payment_id?: string;
 }
 
 export interface ShareMetadata {
@@ -30,6 +31,9 @@ export interface ShareMetadata {
   status: ShareStatus;
   download_count: number;
   database_instance_id?: string;
+  payment_status?: 'free' | 'paid';
+  amount_paid_inr?: number;
+  payment_id?: string;
 }
 
 export interface CreateShareResponse {
@@ -40,6 +44,9 @@ export interface CreateShareResponse {
   file_size: number;
   original_filename: string;
   database_instance_id?: string;
+  payment_status?: 'free' | 'paid';
+  amount_paid_inr?: number;
+  payment_id?: string;
 }
 
 export interface DownloadResponse {

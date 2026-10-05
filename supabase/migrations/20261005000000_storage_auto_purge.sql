@@ -7,7 +7,8 @@
 ALTER TABLE public.file_shares 
     ADD COLUMN IF NOT EXISTS database_instance_id TEXT DEFAULT 'db-1',
     ADD COLUMN IF NOT EXISTS payment_status TEXT DEFAULT 'free',
-    ADD COLUMN IF NOT EXISTS amount_paid_inr INTEGER DEFAULT 0;
+    ADD COLUMN IF NOT EXISTS amount_paid_inr INTEGER DEFAULT 0,
+    ADD COLUMN IF NOT EXISTS payment_id TEXT;
 
 -- 2. Enhanced Cleanup Function: Purges physical storage objects + marks expired
 CREATE OR REPLACE FUNCTION public.cleanup_expired_file_shares()

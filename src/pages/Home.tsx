@@ -126,6 +126,28 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
               </div>
             </div>
 
+            {/* Verified Payment Badge if paid transfer */}
+            {result.payment_id && (
+              <div className="bg-[#F0FDF4] border border-[#BBF7D0] rounded-lg p-3 flex items-center justify-between text-xs text-[#166534]">
+                <div className="flex items-center gap-2">
+                  <span className="w-5 h-5 rounded-full bg-[#16A34A] text-white flex items-center justify-center font-bold text-[10px]">
+                    ✓
+                  </span>
+                  <div>
+                    <span className="font-semibold block text-[#15803D]">
+                      Payment Verified &amp; Confirmed ({result.amount_paid_inr ? `₹${result.amount_paid_inr}` : 'Paid'})
+                    </span>
+                    <span className="text-[11px] text-[#166534]">
+                      Transaction Ref: <span className="font-mono font-medium">{result.payment_id}</span>
+                    </span>
+                  </div>
+                </div>
+                <span className="text-[10px] uppercase font-bold bg-[#DCFCE7] text-[#15803D] px-2 py-0.5 rounded border border-[#BBF7D0]">
+                  Authorized
+                </span>
+              </div>
+            )}
+
             {/* Sharing Methods */}
             <div className="space-y-5">
               <ShareLink shareToken={result.share_token} />
