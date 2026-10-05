@@ -71,7 +71,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const handleRazorpayPay = () => {
     setErrorMsg(null);
     const razorpayKey =
-      import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_DropHourShivagopi';
+      import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TkKDkDLlzwDeIW';
 
     if (typeof window.Razorpay === 'undefined') {
       setErrorMsg('Razorpay SDK is loading. You can scan the UPI QR code directly below.');
