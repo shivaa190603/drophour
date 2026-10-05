@@ -89,7 +89,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
         {isDeleted && (
           <div className="bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg p-4 flex items-center gap-3 text-sm text-[#991B1B]">
             <Trash2 className="w-5 h-5 text-[#DC2626] shrink-0" />
-            <span>File permanently deleted from Supabase storage. Returning to upload...</span>
+            <span>File permanently deleted from database. Returning to upload...</span>
           </div>
         )}
 
@@ -165,7 +165,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
                 type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="w-full sm:w-auto h-9 px-3.5 rounded text-xs font-medium text-[#DC2626] border border-[#DC2626]/30 hover:bg-[#FEE2E2] transition-colors flex items-center justify-center gap-1.5"
-                title="Delete this file permanently from Supabase"
+                title="Delete this file permanently from database"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete now</span>
@@ -238,7 +238,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
             </div>
             <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
               <span className="font-semibold text-[#171717] block">1-Hour Auto Purge</span>
-              <p>Files automatically self-destruct from Supabase storage exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
+              <p>Files automatically self-destruct from database storage exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
             </div>
           </div>
         )}

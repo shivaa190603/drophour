@@ -119,7 +119,7 @@ export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelected, disabled =
 
         <p className="text-xs text-[#666666] pt-1 flex items-center justify-center gap-1">
           <Zap className="w-3.5 h-3.5 text-[#2563EB]" />
-          <span>Files automatically delete permanently from Supabase after 1 hour</span>
+          <span>Files automatically delete permanently from database after 1 hour</span>
         </p>
       </div>
     </div>
