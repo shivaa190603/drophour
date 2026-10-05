@@ -1,0 +1,24 @@
+project_id = "drophour"
+
+[api]
+port = 54321
+schemas = ["public", "storage"]
+
+[db]
+port = 54322
+
+[storage]
+enabled = true
+file_size_limit = "50MiB"
+
+[functions.create-share]
+verify_jwt = false
+
+[functions.download-share]
+verify_jwt = false
+
+[functions.delete-share]
+verify_jwt = false
+
+[functions.cleanup-expired]
+verify_jwt = false
