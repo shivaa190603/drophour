@@ -1,16 +1,19 @@
 import React from 'react';
-import { Clock, User, Mail } from 'lucide-react';
+import { Clock, User, Sun, Moon } from 'lucide-react';
+import type { Theme } from '../lib/theme';
 
 interface HeaderProps {
   onOpenDeveloper: () => void;
   onGoHome: () => void;
-  onOpenContact?: () => void;
+  theme: Theme;
+  onToggleTheme: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDeveloper,
   onGoHome,
-  onOpenContact,
+  theme,
+  onToggleTheme,
 }) => {
   return (
     <header className="w-full border-b border-[#D9D9D9] bg-[#FFFFFF]">
@@ -29,16 +32,25 @@ export const Header: React.FC<HeaderProps> = ({
 
         {/* Navigation */}
         <nav className="flex items-center gap-2 sm:gap-2.5">
-          {onOpenContact && (
-            <button
-              onClick={onOpenContact}
-              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[#666666] hover:text-[#171717] bg-[#FFFFFF] hover:bg-[#F7F7F5] border border-[#D9D9D9] px-2.5 sm:px-3 py-1.5 rounded transition-colors"
-              aria-label="Detailed Contact Information"
-            >
-              <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
-              <span className="hidden xs:inline">Contact</span>
-            </button>
-          )}
+          {/* Theme Toggle Button (Bright / Dark, auto-timed 6 AM - 6 PM or manual switch) */}
+          <button
+            onClick={onToggleTheme}
+            className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[#666666] hover:text-[#171717] bg-[#FFFFFF] hover:bg-[#F7F7F5] border border-[#D9D9D9] px-2.5 sm:px-3 py-1.5 rounded transition-colors cursor-pointer"
+            aria-label={`Switch theme (currently ${theme === 'dark' ? 'Dark' : 'Bright'})`}
+            title={`Current: ${theme === 'dark' ? 'Dark Mode (Active 6 PM – 6 AM)' : 'Bright Mode (Active 6 AM – 6 PM)'} · Click to toggle`}
+          >
+            {theme === 'dark' ? (
+              <>
+                <Moon className="w-3.5 h-3.5 text-[#60A5FA]" />
+                <span className="hidden xs:inline">Dark</span>
+              </>
+            ) : (
+              <>
+                <Sun className="w-3.5 h-3.5 text-[#D97706]" />
+                <span className="hidden xs:inline">Bright</span>
+              </>
+            )}
+          </button>
 
           {/* Developer button (shivagopi) */}
           <button

@@ -5,7 +5,7 @@ export interface SupabaseNodeConfig {
   name: string;
   url: string;
   anonKey: string;
-  capacityBytes: number; // 500MB (524288000) default for free tier
+  capacityBytes: number; // 999MB (1GB) default for free tier
   isConfigured: boolean;
   isPrimary?: boolean;
 }
@@ -25,7 +25,7 @@ const ENV_NODES: SupabaseNodeConfig[] = [
     name: 'Database Node 1 (Primary)',
     url: import.meta.env.VITE_SUPABASE_URL || '',
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
-    capacityBytes: 500 * 1024 * 1024,
+    capacityBytes: 999 * 1024 * 1024,
     isConfigured: Boolean(
       import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
     ),
@@ -36,7 +36,7 @@ const ENV_NODES: SupabaseNodeConfig[] = [
     name: 'Database Node 2 (Large Files)',
     url: import.meta.env.VITE_SUPABASE_URL_2 || '',
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_2 || '',
-    capacityBytes: 500 * 1024 * 1024,
+    capacityBytes: 999 * 1024 * 1024,
     isConfigured: Boolean(
       import.meta.env.VITE_SUPABASE_URL_2 && import.meta.env.VITE_SUPABASE_ANON_KEY_2
     ),
@@ -46,7 +46,7 @@ const ENV_NODES: SupabaseNodeConfig[] = [
     name: 'Database Node 3 (Large Files)',
     url: import.meta.env.VITE_SUPABASE_URL_3 || '',
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_3 || '',
-    capacityBytes: 500 * 1024 * 1024,
+    capacityBytes: 999 * 1024 * 1024,
     isConfigured: Boolean(
       import.meta.env.VITE_SUPABASE_URL_3 && import.meta.env.VITE_SUPABASE_ANON_KEY_3
     ),
@@ -56,7 +56,7 @@ const ENV_NODES: SupabaseNodeConfig[] = [
     name: 'Database Node 4 (Large Files)',
     url: import.meta.env.VITE_SUPABASE_URL_4 || '',
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_4 || '',
-    capacityBytes: 500 * 1024 * 1024,
+    capacityBytes: 999 * 1024 * 1024,
     isConfigured: Boolean(
       import.meta.env.VITE_SUPABASE_URL_4 && import.meta.env.VITE_SUPABASE_ANON_KEY_4
     ),
@@ -66,7 +66,7 @@ const ENV_NODES: SupabaseNodeConfig[] = [
     name: 'Database Node 5 (Overflow)',
     url: import.meta.env.VITE_SUPABASE_URL_5 || '',
     anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY_5 || '',
-    capacityBytes: 500 * 1024 * 1024,
+    capacityBytes: 999 * 1024 * 1024,
     isConfigured: Boolean(
       import.meta.env.VITE_SUPABASE_URL_5 && import.meta.env.VITE_SUPABASE_ANON_KEY_5
     ),

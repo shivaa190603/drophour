@@ -20,6 +20,7 @@
   background-color: #F7F7F5;
   color: #171717;
   font-family: var(--font-sans);
+  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 /* Ensure no gradients exist anywhere */
@@ -32,3 +33,138 @@
   outline: 2px solid #2563EB;
   outline-offset: 2px;
 }
+
+/* ========================================================= */
+/* DARK THEME STYLING & PALETTE (Night 6 PM – 6 AM / Manual) */
+/* ========================================================= */
+
+html.dark {
+  color-scheme: dark;
+  background-color: #0F141C !important;
+  color: #F0F6FC !important;
+}
+
+html.dark body {
+  background-color: #0F141C !important;
+  color: #F0F6FC !important;
+}
+
+/* Page background */
+html.dark .bg-\[\#F7F7F5\] {
+  background-color: #0F141C !important;
+}
+
+/* Card, header, modal surfaces */
+html.dark .bg-\[\#FFFFFF\] {
+  background-color: #161D27 !important;
+}
+
+/* Primary text */
+html.dark .text-\[\#171717\] {
+  color: #F0F6FC !important;
+}
+
+/* Secondary / muted text */
+html.dark .text-\[\#666666\] {
+  color: #94A3B8 !important;
+}
+
+/* Border colors */
+html.dark .border-\[\#D9D9D9\] {
+  border-color: #273142 !important;
+}
+
+/* Interactive hover backgrounds */
+html.dark .hover\:bg-\[\#F7F7F5\]:hover {
+  background-color: #1E2736 !important;
+}
+
+html.dark .hover\:bg-\[\#EAEAEA\]:hover {
+  background-color: #1E2736 !important;
+}
+
+html.dark .hover\:bg-\[\#FFFFFF\]:hover {
+  background-color: #1E2736 !important;
+}
+
+html.dark .hover\:border-\[\#171717\]:hover {
+  border-color: #60A5FA !important;
+}
+
+html.dark .hover\:text-\[\#171717\]:hover {
+  color: #FFFFFF !important;
+}
+
+/* Primary action buttons in dark mode */
+html.dark button.bg-\[\#171717\]:not(.preserve-dark),
+html.dark .bg-\[\#171717\]:not(header *):not(.preserve-dark) {
+  background-color: #F0F6FC !important;
+  color: #0F141C !important;
+}
+
+html.dark button.bg-\[\#171717\]:not(.preserve-dark) svg,
+html.dark .bg-\[\#171717\]:not(header *):not(.preserve-dark) svg {
+  color: #0F141C !important;
+}
+
+html.dark button.bg-\[\#171717\]:hover:not(.preserve-dark) {
+  background-color: #FFFFFF !important;
+}
+
+/* Header brand logo badge */
+html.dark header .bg-\[\#171717\] {
+  background-color: #2563EB !important;
+  color: #FFFFFF !important;
+}
+
+/* Preserve QR Code canvas box white so mobile cameras scan effortlessly */
+html.dark .p-3.bg-white,
+html.dark [class*="qrcode"] {
+  background-color: #FFFFFF !important;
+}
+
+/* Form inputs & textareas in dark mode */
+html.dark input,
+html.dark textarea,
+html.dark select {
+  background-color: #111722 !important;
+  color: #F0F6FC !important;
+  border-color: #273142 !important;
+}
+
+html.dark input::placeholder,
+html.dark textarea::placeholder {
+  color: #64748B !important;
+}
+
+/* Modals & Dialog overlays */
+html.dark [role="dialog"] > div {
+  background-color: #161D27 !important;
+  border-color: #273142 !important;
+}
+
+/* Alert & Status Badges in Dark Mode */
+html.dark .bg-\[\#EFF6FF\] {
+  background-color: #1E293B !important;
+}
+
+html.dark .bg-\[\#DCFCE7\],
+html.dark .bg-\[\#F0FDF4\] {
+  background-color: #052E16 !important;
+  color: #86EFAC !important;
+  border-color: #166534 !important;
+}
+
+html.dark .bg-\[\#FEF2F2\] {
+  background-color: #450A0A !important;
+  color: #FCA5A5 !important;
+  border-color: #991B1B !important;
+}
+
+html.dark .bg-\[\#FEF3C7\] {
+  background-color: #451A03 !important;
+  color: #FDE68A !important;
+  border-color: #92400E !important;
+}
+
+

@@ -17,6 +17,13 @@ import {
   checkSupabaseHealth,
 } from './lib/storage-service';
 import { pingAllSupabaseNodes } from './lib/supabase-pool';
+import {
+  getInitialTheme,
+  applyTheme,
+  toggleTheme,
+  getTimeBasedTheme,
+  type Theme,
+} from './lib/theme';
 import type { SupabaseHealth } from './lib/storage-service';
 
 export function App() {
@@ -24,6 +31,13 @@ export function App() {
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+
+  // Bright / Dark Theme: 6 AM to 6 PM bright, remaining dark; also user-changeable
+  const [theme, setTheme] = useState<Theme>(() => {
+    const init = getInitialTheme();
+    applyTheme(init);
+    return init;
+  });
 
   // Dedicated, separate modals for each page / section (no mixed tabs)
   const [isContactOpen, setIsContactOpen] = useState(() => window.location.pathname === '/contact');
@@ -65,10 +79,31 @@ export function App() {
       runLocalCleanup();
       runSupabaseAutoPurge();
       pingAllSupabaseNodes();
+
+      // Check if time passed 6 AM or 6 PM to auto-adjust theme if user hasn't explicitly set a preference
+      try {
+        const manualPref = localStorage.getItem('drophour_theme');
+        if (!manualPref) {
+          const autoTheme = getTimeBasedTheme();
+          setTheme((prev) => {
+            if (prev !== autoTheme) {
+              applyTheme(autoTheme);
+              return autoTheme;
+            }
+            return prev;
+          });
+        }
+      } catch {
+        // ignore
+      }
     }, 60000);
 
     return () => clearInterval(interval);
   }, []);
+
+  const handleToggleTheme = () => {
+    setTheme((prev) => toggleTheme(prev));
+  };
 
   const navigateTo = (path: string) => {
     window.history.pushState({}, '', path);
@@ -193,10 +228,11 @@ export function App() {
         </div>
       )}
 
-      {/* Brand Header with Developer Profile & Contact */}
+      {/* Brand Header with Developer Profile & Theme Toggle */}
       <Header
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
-        onOpenContact={handleOpenContact}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
         onGoHome={handleGoHome}
       />
 
