@@ -63,11 +63,11 @@ export function App() {
     }
 
     if (currentPath.startsWith('/s/')) {
-      const tokenOrCode = currentPath.slice(3).trim();
-      if (!tokenOrCode) {
+      const rawToken = currentPath.slice(3).replace(/\/+$/, '').trim();
+      if (!rawToken) {
         return <NotFound onGoHome={handleGoHome} />;
       }
-      return <Share tokenOrCode={tokenOrCode} onGoHome={handleGoHome} />;
+      return <Share tokenOrCode={rawToken} onGoHome={handleGoHome} />;
     }
 
     return <NotFound onGoHome={handleGoHome} />;

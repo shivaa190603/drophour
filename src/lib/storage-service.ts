@@ -257,22 +257,19 @@ export async function uploadAndCreateShare(
  * Fetch share metadata by share_token or human share_code
  */
 export async function getShareByTokenOrCode(
-  identifier: string
+  rawIdentifier: string
 ): Promise<{ share: ShareMetadata | null; expired: boolean; notFound: boolean }> {
-  const isCode = identifier.includes('-') || identifier.length <= 10;
-  const normalizedCode = isCode ? normalizeShareCode(identifier) : identifier;
+  const identifier = rawIdentifier.replace(/\/+$/, '').trim();
+  const normalizedCode = normalizeShareCode(identifier);
 
   // Supabase live check
   if (isSupabaseConfigured && supabase) {
     try {
-      let query = supabase.from('file_shares').select('*');
-      if (isCode) {
-        query = query.eq('share_code', normalizedCode);
-      } else {
-        query = query.eq('share_token', identifier);
-      }
-
-      const { data, error } = await query.maybeSingle();
+      const { data, error } = await supabase
+        .from('file_shares')
+        .select('*')
+        .or(`share_token.eq.${identifier},share_code.eq.${identifier},share_code.eq.${normalizedCode}`)
+        .maybeSingle();
 
       if (!error && data) {
         const isExpired = new Date(data.expires_at).getTime() <= Date.now() || data.status !== 'active';
@@ -296,15 +293,18 @@ export async function getShareByTokenOrCode(
           notFound: false,
         };
       }
-    } catch {
-      // ignore and try local fallback
+    } catch (err) {
+      console.warn('[DropHour] Error querying Supabase share:', err);
     }
   }
 
   // Local / Demo mode check
   const shares = getLocalShares();
-  const record = shares.find((s) =>
-    isCode ? normalizeShareCode(s.share_code) === normalizedCode : s.share_token === identifier
+  const record = shares.find(
+    (s) =>
+      s.share_token === identifier ||
+      s.share_code === identifier ||
+      normalizeShareCode(s.share_code) === normalizedCode
   );
 
   if (!record) {
@@ -337,16 +337,19 @@ export async function getShareByTokenOrCode(
  * Generates download URL or file download trigger
  */
 export async function downloadFile(
-  shareToken: string
+  rawShareToken: string
 ): Promise<{ url: string; filename: string; isDirectBlob?: boolean }> {
+  const shareToken = rawShareToken.replace(/\/+$/, '').trim();
+  const normalizedCode = normalizeShareCode(shareToken);
+
   // Supabase live mode
   if (isSupabaseConfigured && supabase) {
     try {
       const { data: record, error: fetchError } = await supabase
         .from('file_shares')
         .select('original_filename, storage_path, expires_at, status, download_count')
-        .eq('share_token', shareToken)
-        .single();
+        .or(`share_token.eq.${shareToken},share_code.eq.${shareToken},share_code.eq.${normalizedCode}`)
+        .maybeSingle();
 
       if (!fetchError && record) {
         if (new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active') {

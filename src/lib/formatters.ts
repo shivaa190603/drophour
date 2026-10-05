@@ -46,9 +46,13 @@ export function getFileCategory(filename: string, mimeType?: string): string {
 }
 
 /**
- * Construct public share URL given token
+ * Construct public share URL given token.
+ * When testing on localhost, uses the public Netlify domain so mobile phone QR scanners can reach the file!
  */
 export function getShareUrl(token: string): string {
   const origin = window.location.origin;
+  if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
+    return `https://shareanywhere.netlify.app/s/${token}`;
+  }
   return `${origin}/s/${token}`;
 }
