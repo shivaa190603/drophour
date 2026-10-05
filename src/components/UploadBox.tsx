@@ -104,22 +104,22 @@ export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelected, disabled =
         {/* Pricing Tiers Pills */}
         <div className="pt-2 flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
           <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] font-medium border border-[#BBF7D0]">
-            Free: &lt; 50MB
+            Free: &lt; 50MB (1hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹10: 50–100MB
+            ₹10: 50–100MB (2hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹30: 100–200MB
+            ₹30: 100–200MB (2hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹50: 200–999MB
+            ₹50: 200–999MB (2hr)
           </span>
         </div>
 
         <p className="text-xs text-[#666666] pt-1 flex items-center justify-center gap-1">
           <Zap className="w-3.5 h-3.5 text-[#2563EB]" />
-          <span>Files automatically delete permanently from database after 1 hour</span>
+          <span>Free files expire in 1 hr · Paid files expire in 2 hr from database</span>
         </p>
       </div>
     </div>

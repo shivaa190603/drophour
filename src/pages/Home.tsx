@@ -135,7 +135,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
                   </span>
                   <div>
                     <span className="font-semibold block text-[#15803D]">
-                      Payment Verified &amp; Confirmed ({result.amount_paid_inr ? `₹${result.amount_paid_inr}` : 'Paid'})
+                      Payment Verified &amp; Confirmed ({result.amount_paid_inr ? `₹${result.amount_paid_inr}` : 'Paid'}) · 2-Hour Extended Retention Active
                     </span>
                     <span className="text-[11px] text-[#166534]">
                       Transaction Ref: <span className="font-mono font-medium">{result.payment_id}</span>
@@ -237,8 +237,8 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWo
               <p>Free transfers up to 50MB, and high-capacity transfers up to 999MB via Razorpay &amp; instant UPI QR code.</p>
             </div>
             <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
-              <span className="font-semibold text-[#171717] block">1-Hour Auto Purge</span>
-              <p>Files automatically self-destruct from database storage exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
+              <span className="font-semibold text-[#171717] block">Auto Purge (1hr / 2hr)</span>
+              <p>Free files self-destruct after 1 hour; paid transfers receive extended 2 hours. Zero logs and automatic hard deletion.</p>
             </div>
           </div>
         )}

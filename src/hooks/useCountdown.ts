@@ -51,7 +51,13 @@ export function useCountdown({
 
   const isExpired = secondsRemaining <= 0;
   const formattedCountdown = formatCountdown(secondsRemaining);
-  const percentRemaining = Math.max(0, Math.min(100, (secondsRemaining / totalDurationSeconds) * 100));
+  const effectiveTotalSeconds =
+    totalDurationSeconds && totalDurationSeconds !== 3600
+      ? totalDurationSeconds
+      : secondsRemaining > 3600
+      ? 7200
+      : 3600;
+  const percentRemaining = Math.max(0, Math.min(100, (secondsRemaining / effectiveTotalSeconds) * 100));
 
   return {
     secondsRemaining,

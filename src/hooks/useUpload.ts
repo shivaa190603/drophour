@@ -20,8 +20,9 @@ export function useUpload() {
         priceInr: 0,
         isPaid: false,
         tierName: 'Free Tier',
-        description: 'Files up to 50 MB are free.',
-        badgeLabel: 'Free',
+        description: 'Files up to 50 MB are free with 1-hour expiration.',
+        badgeLabel: 'Free · 1hr',
+        expiryHours: 1,
       };
     }
     return getFilePricingTier(file.size);

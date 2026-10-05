@@ -219,11 +219,15 @@ export async function uploadAndCreateShare(
 
   const cleanFilename = sanitizeFilename(file.name);
   const now = new Date();
-  const expiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+  const pricing = getFilePricingTier(file.size);
+  const isPaidTransfer =
+    pricing.isPaid || Boolean(paymentDetails && paymentDetails.amountPaidInr > 0);
+  // Free transfers: 1 hour (3600s), Paid transfers: 2 hours (7200s)
+  const expiryDurationMs = (isPaidTransfer ? 2 : 1) * 60 * 60 * 1000;
+  const expiresAt = new Date(now.getTime() + expiryDurationMs).toISOString();
   const shareToken = generateSecureToken(24);
   const shareCode = generateShareCode();
   const deleteToken = generateSecureToken(32);
-  const pricing = getFilePricingTier(file.size);
 
   // If Supabase is configured, use Smart Load Balancer to pick the best node among the 5 instances
   if (isSupabaseConfigured) {

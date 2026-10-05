@@ -46,7 +46,7 @@ CREATE POLICY "Allow anonymous share creation"
     ON public.file_shares
     FOR INSERT
     TO anon, authenticated
-    WITH CHECK (expires_at <= (now() + interval '1 hour 5 minutes'));
+    WITH CHECK (expires_at <= (now() + interval '2 hours 15 minutes'));
 
 -- 4. Create Private Storage Bucket
 INSERT INTO storage.buckets (id, name, public, file_size_limit, allowed_mime_types)
