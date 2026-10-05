@@ -55,7 +55,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
   };
 
   const developerEmail = 'shivaa190603@gmail.com';
-  const githubProfile = 'https://github.com/shivaa1906';
+  const githubProfile = 'https://github.com/shivaa190603';
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(developerEmail);
@@ -300,7 +300,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                     </span>
                     <ExternalLink className="w-3.5 h-3.5 text-[#666666]" />
                   </div>
-                  <div className="font-bold text-sm text-[#171717]">github.com/shivaa1906</div>
+                  <div className="font-bold text-sm text-[#171717]">github.com/shivaa190603</div>
                   <p className="text-[11px] text-[#666666]">
                     View source code, developer activity &amp; issues.
                   </p>

@@ -21,7 +21,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
 }) => {
   const [copied, setCopied] = useState(false);
   const email = 'shivaa190603@gmail.com';
-  const githubUrl = 'https://github.com/shivaa1906';
+  const githubUrl = 'https://github.com/shivaa190603';
 
   if (!isOpen) return null;
 
@@ -105,7 +105,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
                 <span className="text-[10px] text-[#666666] uppercase font-semibold block">
                   GitHub Profile
                 </span>
-                <span className="text-xs font-medium text-[#171717]">github.com/shivaa1906</span>
+                <span className="text-xs font-medium text-[#171717]">github.com/shivaa190603</span>
               </div>
             </div>
             <ExternalLink className="w-3.5 h-3.5 text-[#666666]" />
