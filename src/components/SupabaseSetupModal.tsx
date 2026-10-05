@@ -34,12 +34,14 @@ CREATE INDEX IF NOT EXISTS idx_file_shares_cleanup ON public.file_shares (expire
 -- 3. Row Level Security (RLS)
 ALTER TABLE public.file_shares ENABLE ROW LEVEL SECURITY;
 
+DROP POLICY IF EXISTS "Public lookup active shares by token or code" ON public.file_shares;
 CREATE POLICY "Public lookup active shares by token or code"
     ON public.file_shares
     FOR SELECT
     TO anon, authenticated
     USING (status = 'active' AND expires_at > now());
 
+DROP POLICY IF EXISTS "Allow anonymous share creation" ON public.file_shares;
 CREATE POLICY "Allow anonymous share creation"
     ON public.file_shares
     FOR INSERT
@@ -52,12 +54,14 @@ VALUES ('temporary-files', 'temporary-files', false, 52428800, null)
 ON CONFLICT (id) DO UPDATE SET public = false;
 
 -- 5. Storage Security Policies
+DROP POLICY IF EXISTS "Allow anonymous uploads to temporary-files" ON storage.objects;
 CREATE POLICY "Allow anonymous uploads to temporary-files"
     ON storage.objects
     FOR INSERT
     TO anon, authenticated
     WITH CHECK (bucket_id = 'temporary-files');
 
+DROP POLICY IF EXISTS "Service role full control of temporary-files" ON storage.objects;
 CREATE POLICY "Service role full control of temporary-files"
     ON storage.objects
     FOR ALL
