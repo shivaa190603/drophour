@@ -52,7 +52,7 @@ export function getFileCategory(filename: string, mimeType?: string): string {
 export function getShareUrl(token: string): string {
   const origin = window.location.origin;
   if (origin.includes('localhost') || origin.includes('127.0.0.1')) {
-    return `https://shareanywhere.netlify.app/s/${token}`;
+    return `https://drophour.netlify.app/s/${token}`;
   }
   return `${origin}/s/${token}`;
 }
