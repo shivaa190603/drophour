@@ -1,4 +1,9 @@
 import { supabase, isSupabaseConfigured } from './supabase';
+import {
+  selectOptimalSupabaseNode,
+  getPoolConfigs,
+  getClientForNode,
+} from './supabase-pool';
 import type { CreateShareResponse, ShareMetadata, FileShare } from '../types/file';
 import {
   generateShareCode,
@@ -7,6 +12,7 @@ import {
   validateFile,
   normalizeShareCode,
 } from './validation';
+import { getFilePricingTier } from './pricing';
 import { saveLocalFileBlob, getLocalFileBlob, deleteLocalFileBlob } from './local-storage-db';
 
 const LOCAL_STORAGE_SHARES_KEY = 'drophour_local_shares';
@@ -26,15 +32,20 @@ export async function checkSupabaseHealth(): Promise<SupabaseHealth> {
 
   try {
     const { error: tableError } = await supabase.from('file_shares').select('id').limit(1);
-    
+
     if (tableError) {
-      if (tableError.code === 'PGRST205' || tableError.message?.includes('schema cache') || tableError.message?.includes('not find the table')) {
+      if (
+        tableError.code === 'PGRST205' ||
+        tableError.message?.includes('schema cache') ||
+        tableError.message?.includes('not find the table')
+      ) {
         return {
           isConfigured: true,
           isReady: false,
           missingTable: true,
           missingBucket: true,
-          message: 'The "file_shares" table and "temporary-files" bucket have not been created yet.',
+          message:
+            'The "file_shares" table and "temporary-files" bucket have not been created yet.',
         };
       }
     }
@@ -92,6 +103,54 @@ export async function runLocalCleanup(): Promise<void> {
 }
 
 /**
+ * Periodically purge expired files from all configured Supabase database nodes
+ * Physically deletes the binary files from 'temporary-files' storage bucket and updates database
+ */
+export async function runSupabaseAutoPurge(): Promise<void> {
+  const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
+  const nowIso = new Date().toISOString();
+
+  for (const node of nodes) {
+    const client = getClientForNode(node);
+    if (!client) continue;
+
+    try {
+      // 1. Trigger RPC function if available on Supabase
+      try {
+        await client.rpc('cleanup_expired_file_shares');
+      } catch {
+        // RPC might not exist or pg_cron handled it
+      }
+
+      // 2. Proactive client-side scan for expired or deleted shares on this node
+      const { data: expiredShares } = await client
+        .from('file_shares')
+        .select('id, storage_path')
+        .or(`expires_at.lte.${nowIso},status.eq.deleted,status.eq.expired`)
+        .limit(30);
+
+      if (expiredShares && expiredShares.length > 0) {
+        const storagePaths = expiredShares.map((s) => s.storage_path).filter(Boolean);
+        const ids = expiredShares.map((s) => s.id);
+
+        if (storagePaths.length > 0) {
+          // Physically remove binary files from Supabase storage
+          await client.storage.from('temporary-files').remove(storagePaths);
+        }
+
+        // Update database records to expired
+        await client
+          .from('file_shares')
+          .update({ status: 'expired' })
+          .in('id', ids);
+      }
+    } catch (err) {
+      console.warn(`[DropHour Purge] Error purging node ${node.id}:`, err);
+    }
+  }
+}
+
+/**
  * Helper to save file locally in IndexedDB + localStorage
  */
 async function saveToLocalEngine(
@@ -124,6 +183,7 @@ async function saveToLocalEngine(
     expires_at: expiresAt,
     status: 'active',
     download_count: 0,
+    database_instance_id: 'local',
   };
 
   const currentShares = getLocalShares();
@@ -139,15 +199,18 @@ async function saveToLocalEngine(
     expires_at: expiresAt,
     file_size: file.size,
     original_filename: cleanFilename,
+    database_instance_id: 'local',
   };
 }
 
 /**
  * Upload a file and create a temporary share (1-hour expiration)
+ * Uses smart load balancing across up to 5 Supabase nodes for >50MB files
  */
 export async function uploadAndCreateShare(
   file: File,
-  onProgress?: (progress: number) => void
+  onProgress?: (progress: number) => void,
+  paymentDetails?: { amountPaidInr: number; paymentId?: string }
 ): Promise<CreateShareResponse> {
   const validation = validateFile(file);
   if (!validation.valid) {
@@ -160,101 +223,128 @@ export async function uploadAndCreateShare(
   const shareToken = generateSecureToken(24);
   const shareCode = generateShareCode();
   const deleteToken = generateSecureToken(32);
+  const pricing = getFilePricingTier(file.size);
 
-  // If Supabase is configured, attempt Supabase Storage & Database
-  if (isSupabaseConfigured && supabase) {
+  // If Supabase is configured, use Smart Load Balancer to pick the best node among the 5 instances
+  if (isSupabaseConfigured) {
     try {
-      if (onProgress) onProgress(20);
+      if (onProgress) onProgress(15);
 
-      // 1. Attempt Edge Function first
-      const formData = new FormData();
-      formData.append('file', file);
-      formData.append('filename', cleanFilename);
-      formData.append('share_token', shareToken);
-      formData.append('share_code', shareCode);
-      formData.append('delete_token', deleteToken);
+      const { client: targetClient, node: targetNode } =
+        await selectOptimalSupabaseNode(file.size);
 
-      const { data: edgeData, error: edgeError } = await supabase.functions.invoke('create-share', {
-        body: formData,
-      });
+      if (targetClient) {
+        const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
+        const uniqueId = crypto.randomUUID();
+        const storagePath = `${datePath}/${uniqueId}/${cleanFilename}`;
 
-      if (!edgeError && edgeData) {
-        if (onProgress) onProgress(100);
-        return {
-          share_token: edgeData.share_token,
-          share_code: edgeData.share_code,
-          delete_token: edgeData.delete_token,
-          expires_at: edgeData.expires_at,
-          file_size: edgeData.file_size,
-          original_filename: edgeData.original_filename,
-        };
-      }
+        if (onProgress) onProgress(40);
 
-      // 2. Direct Supabase Storage & DB upload
-      const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;
-      const uniqueId = crypto.randomUUID();
-      const storagePath = `${datePath}/${uniqueId}/${cleanFilename}`;
+        // Upload physical file bytes to Supabase storage on the selected node
+        const { error: uploadError } = await targetClient.storage
+          .from('temporary-files')
+          .upload(storagePath, file, {
+            contentType: file.type || 'application/octet-stream',
+            upsert: false,
+          });
 
-      if (onProgress) onProgress(45);
+        if (uploadError) {
+          console.warn(
+            `[DropHour] Storage upload failed on node ${targetNode.id}:`,
+            uploadError
+          );
+          // Fall back to local engine if bucket fails
+          return await saveToLocalEngine(
+            file,
+            cleanFilename,
+            shareToken,
+            shareCode,
+            deleteToken,
+            expiresAt,
+            now,
+            onProgress
+          );
+        }
 
-      const { error: uploadError } = await supabase.storage
-        .from('temporary-files')
-        .upload(storagePath, file, {
-          contentType: file.type || 'application/octet-stream',
-          upsert: false,
+        if (onProgress) onProgress(75);
+
+        // Record file share metadata in the node's database
+        const { error: dbError } = await targetClient.from('file_shares').insert({
+          share_token: shareToken,
+          share_code: shareCode,
+          delete_token: deleteToken,
+          original_filename: cleanFilename,
+          storage_path: storagePath,
+          file_size: file.size,
+          mime_type: file.type || 'application/octet-stream',
+          created_at: now.toISOString(),
+          expires_at: expiresAt,
+          status: 'active',
+          download_count: 0,
+          database_instance_id: targetNode.id,
+          payment_status: pricing.isPaid ? 'paid' : 'free',
+          amount_paid_inr: paymentDetails?.amountPaidInr || (pricing.isPaid ? pricing.priceInr : 0),
         });
 
-      if (uploadError) {
-        console.warn('[DropHour] Supabase storage upload failed (bucket missing or not setup):', uploadError);
-        console.info('[DropHour] Falling back to local storage engine so your upload succeeds...');
-        return await saveToLocalEngine(file, cleanFilename, shareToken, shareCode, deleteToken, expiresAt, now, onProgress);
+        if (dbError) {
+          console.warn(`[DropHour] DB insert failed on node ${targetNode.id}:`, dbError);
+          // Reclaim storage object if DB insert failed
+          await targetClient.storage.from('temporary-files').remove([storagePath]);
+          return await saveToLocalEngine(
+            file,
+            cleanFilename,
+            shareToken,
+            shareCode,
+            deleteToken,
+            expiresAt,
+            now,
+            onProgress
+          );
+        }
+
+        if (onProgress) onProgress(100);
+
+        return {
+          share_token: shareToken,
+          share_code: shareCode,
+          delete_token: deleteToken,
+          expires_at: expiresAt,
+          file_size: file.size,
+          original_filename: cleanFilename,
+          database_instance_id: targetNode.id,
+        };
       }
-
-      if (onProgress) onProgress(80);
-
-      const { error: dbError } = await supabase.from('file_shares').insert({
-        share_token: shareToken,
-        share_code: shareCode,
-        delete_token: deleteToken,
-        original_filename: cleanFilename,
-        storage_path: storagePath,
-        file_size: file.size,
-        mime_type: file.type || 'application/octet-stream',
-        created_at: now.toISOString(),
-        expires_at: expiresAt,
-        status: 'active',
-        download_count: 0,
-      });
-
-      if (dbError) {
-        console.warn('[DropHour] Supabase database insert failed (table missing or RLS):', dbError);
-        await supabase.storage.from('temporary-files').remove([storagePath]);
-        console.info('[DropHour] Falling back to local storage engine...');
-        return await saveToLocalEngine(file, cleanFilename, shareToken, shareCode, deleteToken, expiresAt, now, onProgress);
-      }
-
-      if (onProgress) onProgress(100);
-
-      return {
-        share_token: shareToken,
-        share_code: shareCode,
-        delete_token: deleteToken,
-        expires_at: expiresAt,
-        file_size: file.size,
-        original_filename: cleanFilename,
-      };
     } catch (err: unknown) {
-      console.warn('[DropHour] Supabase error during upload, falling back to local engine:', err);
-      return await saveToLocalEngine(file, cleanFilename, shareToken, shareCode, deleteToken, expiresAt, now, onProgress);
+      console.warn('[DropHour] Error during Supabase upload, falling back to local engine:', err);
+      return await saveToLocalEngine(
+        file,
+        cleanFilename,
+        shareToken,
+        shareCode,
+        deleteToken,
+        expiresAt,
+        now,
+        onProgress
+      );
     }
   }
 
-  // Local / Demo Mode (IndexedDB + localStorage)
-  return await saveToLocalEngine(file, cleanFilename, shareToken, shareCode, deleteToken, expiresAt, now, onProgress);
+  // Local / Demo Mode fallback
+  return await saveToLocalEngine(
+    file,
+    cleanFilename,
+    shareToken,
+    shareCode,
+    deleteToken,
+    expiresAt,
+    now,
+    onProgress
+  );
 }
 
 /**
  * Fetch share metadata by share_token or human share_code
+ * Searches across configured Supabase database nodes and automatically purges if expired
  */
 export async function getShareByTokenOrCode(
   rawIdentifier: string
@@ -262,18 +352,37 @@ export async function getShareByTokenOrCode(
   const identifier = rawIdentifier.replace(/\/+$/, '').trim();
   const normalizedCode = normalizeShareCode(identifier);
 
-  // Supabase live check
-  if (isSupabaseConfigured && supabase) {
+  // Search across configured Supabase nodes
+  const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
+
+  for (const node of nodes) {
+    const client = getClientForNode(node);
+    if (!client) continue;
+
     try {
-      const { data, error } = await supabase
+      const { data, error } = await client
         .from('file_shares')
         .select('*')
-        .or(`share_token.ilike.${identifier},share_code.ilike.${identifier},share_code.ilike.${normalizedCode}`)
+        .or(
+          `share_token.ilike.${identifier},share_code.ilike.${identifier},share_code.ilike.${normalizedCode}`
+        )
         .maybeSingle();
 
       if (!error && data) {
-        const isExpired = new Date(data.expires_at).getTime() <= Date.now() || data.status !== 'active';
+        const isExpired =
+          new Date(data.expires_at).getTime() <= Date.now() || data.status !== 'active';
+
         if (isExpired) {
+          // Immediately purge expired physical file from this Supabase node!
+          if (data.storage_path) {
+            client.storage.from('temporary-files').remove([data.storage_path]).then();
+          }
+          client
+            .from('file_shares')
+            .update({ status: 'expired' })
+            .eq('id', data.id)
+            .then();
+
           return { share: null, expired: true, notFound: false };
         }
 
@@ -288,13 +397,14 @@ export async function getShareByTokenOrCode(
             expires_at: data.expires_at,
             status: data.status,
             download_count: data.download_count || 0,
+            database_instance_id: data.database_instance_id || node.id,
           },
           expired: false,
           notFound: false,
         };
       }
-    } catch (err) {
-      console.warn('[DropHour] Error querying Supabase share:', err);
+    } catch {
+      // Continue to next node
     }
   }
 
@@ -313,8 +423,10 @@ export async function getShareByTokenOrCode(
     return { share: null, expired: false, notFound: true };
   }
 
-  const isExpired = new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active';
+  const isExpired =
+    new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active';
   if (isExpired) {
+    deleteLocalFileBlob(record.share_token).catch(() => {});
     return { share: null, expired: true, notFound: false };
   }
 
@@ -329,6 +441,7 @@ export async function getShareByTokenOrCode(
       expires_at: record.expires_at,
       status: record.status,
       download_count: record.download_count,
+      database_instance_id: 'local',
     },
     expired: false,
     notFound: false,
@@ -344,34 +457,39 @@ export async function downloadFile(
   const shareToken = rawShareToken.replace(/\/+$/, '').trim();
   const normalizedCode = normalizeShareCode(shareToken);
 
-  // Supabase live mode
-  if (isSupabaseConfigured && supabase) {
+  // Search across Supabase nodes
+  const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
+
+  for (const node of nodes) {
+    const client = getClientForNode(node);
+    if (!client) continue;
+
     try {
-      const { data: record, error: fetchError } = await supabase
+      const { data: record, error: fetchError } = await client
         .from('file_shares')
-        .select('original_filename, storage_path, expires_at, status, download_count')
-        .or(`share_token.ilike.${shareToken},share_code.ilike.${shareToken},share_code.ilike.${normalizedCode}`)
+        .select('id, original_filename, storage_path, expires_at, status, download_count')
+        .or(
+          `share_token.ilike.${shareToken},share_code.ilike.${shareToken},share_code.ilike.${normalizedCode}`
+        )
         .maybeSingle();
 
       if (!fetchError && record) {
         if (new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active') {
-          throw new Error('This file has expired and has been removed.');
+          // Immediately purge expired file from storage
+          if (record.storage_path) {
+            client.storage.from('temporary-files').remove([record.storage_path]).then();
+          }
+          client
+            .from('file_shares')
+            .update({ status: 'expired' })
+            .eq('id', record.id)
+            .then();
+
+          throw new Error('This file has expired and has been permanently removed.');
         }
 
-        // Try edge function if available
-        const { data: edgeDownload } = await supabase.functions.invoke('download-share', {
-          body: { share_token: shareToken },
-        });
-
-        if (edgeDownload && edgeDownload.download_url) {
-          return {
-            url: edgeDownload.download_url,
-            filename: edgeDownload.filename || record.original_filename,
-          };
-        }
-
-        // Fallback: Create signed URL for private bucket (60 seconds valid)
-        const { data: signedData, error: signError } = await supabase.storage
+        // Create signed URL for private bucket (60 seconds valid)
+        const { data: signedData, error: signError } = await client.storage
           .from('temporary-files')
           .createSignedUrl(record.storage_path, 60, {
             download: record.original_filename,
@@ -379,13 +497,13 @@ export async function downloadFile(
 
         if (!signError && signedData?.signedUrl) {
           // Increment download count asynchronously
-          supabase
+          client
             .from('file_shares')
             .update({
               download_count: (record.download_count || 0) + 1,
               last_downloaded_at: new Date().toISOString(),
             })
-            .eq('share_token', shareToken)
+            .eq('id', record.id)
             .then();
 
           return {
@@ -394,12 +512,14 @@ export async function downloadFile(
           };
         }
       }
-    } catch {
-      // Try local fallback
+    } catch (err: unknown) {
+      if (err instanceof Error && err.message.includes('expired')) {
+        throw err;
+      }
     }
   }
 
-  // Local / Demo mode
+  // Local / Demo mode fallback
   const shares = getLocalShares();
   const recordIndex = shares.findIndex((s) => s.share_token === shareToken);
 
@@ -409,6 +529,7 @@ export async function downloadFile(
 
   const record = shares[recordIndex];
   if (new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active') {
+    deleteLocalFileBlob(record.share_token).catch(() => {});
     throw new Error('This file has expired and has been permanently removed.');
   }
 
@@ -417,7 +538,6 @@ export async function downloadFile(
     throw new Error('File object is no longer available in local storage.');
   }
 
-  // Increment download count
   shares[recordIndex].download_count += 1;
   shares[recordIndex].last_downloaded_at = new Date().toISOString();
   saveLocalShares(shares);
@@ -431,54 +551,70 @@ export async function downloadFile(
 }
 
 /**
- * Permanently delete file immediately using delete_token
+ * Permanently deletes file immediately using delete_token
+ * Physically deletes the binary file from Supabase storage bucket and marks record deleted
  */
 export async function deleteShareImmediately(
   deleteToken: string,
   shareToken?: string
 ): Promise<{ success: boolean; error?: string }> {
-  // Supabase live mode
-  if (isSupabaseConfigured && supabase) {
+  let deletedFromSupabase = false;
+
+  // Search across all Supabase nodes
+  const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
+
+  for (const node of nodes) {
+    const client = getClientForNode(node);
+    if (!client) continue;
+
     try {
-      const { data: edgeResult, error: edgeError } = await supabase.functions.invoke('delete-share', {
-        body: { delete_token: deleteToken, share_token: shareToken },
-      });
-
-      if (!edgeError && edgeResult?.success) {
-        return { success: true };
-      }
-
-      // Direct fallback
-      const { data: record } = await supabase
+      const { data: record } = await client
         .from('file_shares')
         .select('id, storage_path')
         .eq('delete_token', deleteToken)
-        .single();
+        .maybeSingle();
 
       if (record) {
-        await supabase.storage.from('temporary-files').remove([record.storage_path]);
-        await supabase
+        // 1. Physically delete binary file from storage bucket
+        if (record.storage_path) {
+          const { error: removeError } = await client.storage
+            .from('temporary-files')
+            .remove([record.storage_path]);
+          if (removeError) {
+            console.warn('[DropHour Delete] Storage remove error:', removeError);
+          }
+        }
+
+        // 2. Mark database record as deleted
+        await client
           .from('file_shares')
           .update({ status: 'deleted' })
           .eq('id', record.id);
-        return { success: true };
+
+        deletedFromSupabase = true;
+        break;
       }
-    } catch {
-      // Fall through to local
+    } catch (err) {
+      console.warn(`[DropHour Delete] Error on node ${node.id}:`, err);
     }
   }
 
-  // Local / Demo mode
+  // Also clean up local storage if present
   const shares = getLocalShares();
-  const record = shares.find((s) => s.delete_token === deleteToken);
+  const record = shares.find(
+    (s) => s.delete_token === deleteToken || (shareToken && s.share_token === shareToken)
+  );
 
-  if (!record) {
-    return { success: false, error: 'File record not found or already deleted.' };
+  if (record) {
+    await deleteLocalFileBlob(record.share_token);
+    const remaining = shares.filter((s) => s.delete_token !== deleteToken);
+    saveLocalShares(remaining);
+    return { success: true };
   }
 
-  await deleteLocalFileBlob(record.share_token);
-  const remaining = shares.filter((s) => s.delete_token !== deleteToken);
-  saveLocalShares(remaining);
+  if (deletedFromSupabase) {
+    return { success: true };
+  }
 
-  return { success: true };
+  return { success: false, error: 'File record not found or already deleted.' };
 }

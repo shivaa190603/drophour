@@ -14,6 +14,9 @@ export interface FileShare {
   status: ShareStatus;
   download_count: number;
   last_downloaded_at?: string | null;
+  database_instance_id?: string;
+  payment_status?: 'free' | 'paid';
+  amount_paid_inr?: number;
 }
 
 export interface ShareMetadata {
@@ -26,6 +29,7 @@ export interface ShareMetadata {
   expires_at: string;
   status: ShareStatus;
   download_count: number;
+  database_instance_id?: string;
 }
 
 export interface CreateShareResponse {
@@ -35,6 +39,7 @@ export interface CreateShareResponse {
   expires_at: string;
   file_size: number;
   original_filename: string;
+  database_instance_id?: string;
 }
 
 export interface DownloadResponse {
@@ -43,7 +48,14 @@ export interface DownloadResponse {
   expires_at: string;
 }
 
-export type UploadStage = 'idle' | 'selected' | 'uploading' | 'securing' | 'completed' | 'error';
+export type UploadStage =
+  | 'idle'
+  | 'selected'
+  | 'awaiting_payment'
+  | 'uploading'
+  | 'securing'
+  | 'completed'
+  | 'error';
 
 export interface UploadProgress {
   stage: UploadStage;

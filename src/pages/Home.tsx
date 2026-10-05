@@ -1,5 +1,5 @@
 import React, { useState } from 'react';
-import { FileText, Trash2, PlusCircle, AlertCircle } from 'lucide-react';
+import { FileText, Trash2, PlusCircle, AlertCircle, HelpCircle } from 'lucide-react';
 import { useUpload } from '../hooks/useUpload';
 import { UploadBox } from '../components/UploadBox';
 import { FilePreview } from '../components/FilePreview';
@@ -9,23 +9,29 @@ import { ShareCode } from '../components/ShareCode';
 import { QRCode } from '../components/QRCode';
 import { ShareCodeLookup } from '../components/ShareCodeLookup';
 import { DeleteConfirmModal } from '../components/DeleteConfirmModal';
+import { PaymentModal } from '../components/PaymentModal';
 import { formatFileSize, getFileCategory } from '../lib/formatters';
 import { deleteShareImmediately } from '../lib/storage-service';
 
 interface HomePageProps {
   onNavigateToShare: (tokenOrCode: string) => void;
+  onOpenHowItWorks?: () => void;
 }
 
-export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
+export const Home: React.FC<HomePageProps> = ({ onNavigateToShare, onOpenHowItWorks }) => {
   const {
     file,
     stage,
     progressPercent,
     errorMessage,
     result,
+    pricing,
+    isPaymentModalOpen,
+    setIsPaymentModalOpen,
     handleFileSelected,
     cancelSelection,
     startUpload,
+    handlePaymentSuccess,
     reset,
   } = useUpload();
 
@@ -53,8 +59,20 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
           Share files anywhere. Disappears in an hour.
         </h1>
         <p className="text-sm sm:text-base text-[#666666] leading-relaxed">
-          Fast, free PDF host &amp; temporary file sharing. Upload documents, PDFs, or files and get a private link, 8-character code, and QR code instantly. No account required.
+          Fast, free PDF host &amp; temporary file sharing. Upload documents, PDFs, or files up to 999MB and get a private link, 8-character code, and QR code instantly.
         </p>
+
+        {onOpenHowItWorks && (
+          <div className="pt-1 flex items-center justify-center gap-1.5">
+            <button
+              onClick={onOpenHowItWorks}
+              className="inline-flex items-center gap-1 text-xs text-[#2563EB] hover:underline font-medium"
+            >
+              <HelpCircle className="w-3.5 h-3.5" />
+              <span>Learn how DropHour works</span>
+            </button>
+          </div>
+        )}
       </section>
 
       {/* Main Interactive Stage */}
@@ -71,7 +89,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
         {isDeleted && (
           <div className="bg-[#FEF2F2] border border-[#FCA5A5] rounded-lg p-4 flex items-center gap-3 text-sm text-[#991B1B]">
             <Trash2 className="w-5 h-5 text-[#DC2626] shrink-0" />
-            <span>File permanently deleted from storage. Returning to upload...</span>
+            <span>File permanently deleted from Supabase storage. Returning to upload...</span>
           </div>
         )}
 
@@ -125,6 +143,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
                 type="button"
                 onClick={() => setIsDeleteModalOpen(true)}
                 className="w-full sm:w-auto h-9 px-3.5 rounded text-xs font-medium text-[#DC2626] border border-[#DC2626]/30 hover:bg-[#FEE2E2] transition-colors flex items-center justify-center gap-1.5"
+                title="Delete this file permanently from Supabase"
               >
                 <Trash2 className="w-3.5 h-3.5" />
                 <span>Delete now</span>
@@ -140,7 +159,7 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
               </button>
             </div>
 
-            {/* Delete Modal */}
+            {/* Confirmation Pop-up while deleting */}
             <DeleteConfirmModal
               isOpen={isDeleteModalOpen}
               filename={result.original_filename}
@@ -150,13 +169,28 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
           </div>
         ) : file ? (
           /* State 2: File Selected / In Progress */
-          <FilePreview
-            file={file}
-            stage={stage}
-            progressPercent={progressPercent}
-            onRemove={cancelSelection}
-            onUpload={startUpload}
-          />
+          <>
+            <FilePreview
+              file={file}
+              stage={stage}
+              progressPercent={progressPercent}
+              pricing={pricing}
+              onRemove={cancelSelection}
+              onUpload={startUpload}
+            />
+
+            {/* Payment Modal for > 50MB files */}
+            {pricing.isPaid && (
+              <PaymentModal
+                isOpen={isPaymentModalOpen}
+                filename={file.name}
+                filesize={file.size}
+                pricing={pricing}
+                onPaymentSuccess={handlePaymentSuccess}
+                onClose={() => setIsPaymentModalOpen(false)}
+              />
+            )}
+          </>
         ) : (
           /* State 3: Idle Upload Box */
           <UploadBox onFileSelected={handleFileSelected} />
@@ -177,12 +211,12 @@ export const Home: React.FC<HomePageProps> = ({ onNavigateToShare }) => {
               <p>Generate instant links, scannable QR codes, and 8-character codes to share files across any phone or desktop.</p>
             </div>
             <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
-              <span className="font-semibold text-[#171717] block">Free PDF Host</span>
-              <p>Quick temporary hosting for PDFs, documents, images, and archives up to 50MB with zero signups or delays.</p>
+              <span className="font-semibold text-[#171717] block">Free &amp; Large File Tiers</span>
+              <p>Free transfers up to 50MB, and high-capacity transfers up to 999MB via Razorpay &amp; instant UPI QR code.</p>
             </div>
             <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-1">
               <span className="font-semibold text-[#171717] block">1-Hour Auto Purge</span>
-              <p>Files automatically self-destruct exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
+              <p>Files automatically self-destruct from Supabase storage exactly 60 minutes after upload. Zero logs and permanent deletion.</p>
             </div>
           </div>
         )}

@@ -1,5 +1,5 @@
 import React, { useRef, useState, type DragEvent } from 'react';
-import { UploadCloud } from 'lucide-react';
+import { UploadCloud, Zap } from 'lucide-react';
 
 interface UploadBoxProps {
   onFileSelected: (file: File) => void;
@@ -69,7 +69,7 @@ export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelected, disabled =
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
-      className={`relative w-full rounded-lg border-2 border-dashed p-10 md:p-14 text-center cursor-pointer transition-colors outline-none select-none ${
+      className={`relative w-full rounded-lg border-2 border-dashed p-8 md:p-12 text-center cursor-pointer transition-colors outline-none select-none ${
         isDragging
           ? 'border-[#2563EB] bg-[#EFF6FF]'
           : 'border-[#D9D9D9] bg-[#FFFFFF] hover:border-[#666666]'
@@ -97,12 +97,29 @@ export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelected, disabled =
             {isDragging ? 'Drop your file here' : 'Drop your file here'}
           </p>
           <p className="text-sm text-[#666666]">
-            or <span className="text-[#2563EB] font-medium hover:underline">choose a file</span>
+            or <span className="text-[#2563EB] font-medium hover:underline">choose a file</span> (up to 999 MB)
           </p>
         </div>
 
-        <p className="text-xs text-[#666666] pt-2">
-          Files are automatically deleted after 1 hour (up to 50 MB)
+        {/* Pricing Tiers Pills */}
+        <div className="pt-2 flex flex-wrap items-center justify-center gap-1.5 text-[11px]">
+          <span className="px-2 py-0.5 rounded bg-[#DCFCE7] text-[#15803D] font-medium border border-[#BBF7D0]">
+            Free: &lt; 50MB
+          </span>
+          <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
+            ₹10: 50–100MB
+          </span>
+          <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
+            ₹30: 100–200MB
+          </span>
+          <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
+            ₹50: 200–999MB
+          </span>
+        </div>
+
+        <p className="text-xs text-[#666666] pt-1 flex items-center justify-center gap-1">
+          <Zap className="w-3.5 h-3.5 text-[#2563EB]" />
+          <span>Files automatically delete permanently from Supabase after 1 hour</span>
         </p>
       </div>
     </div>

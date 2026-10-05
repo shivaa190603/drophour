@@ -1,5 +1,6 @@
 // Configuration
-export const MAX_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
+export const MAX_FILE_SIZE_BYTES = 999 * 1024 * 1024; // 999 MB (Free up to 50MB, Paid 50MB to 999MB)
+export const FREE_FILE_SIZE_BYTES = 50 * 1024 * 1024; // 50 MB
 export const EXPIRATION_DURATION_SECONDS = 60 * 60; // 1 hour (3600 seconds)
 
 // Non-ambiguous charset (excluding 0, O, 1, I, L)
@@ -76,7 +77,7 @@ export function validateFile(file: File): { valid: boolean; error?: string } {
     return { valid: false, error: 'File is empty (0 bytes).' };
   }
   if (file.size > MAX_FILE_SIZE_BYTES) {
-    return { valid: false, error: 'This file is too large. Maximum allowed size is 50 MB.' };
+    return { valid: false, error: 'This file is too large. Maximum allowed size is 999 MB.' };
   }
   return { valid: true };
 }

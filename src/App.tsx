@@ -4,15 +4,23 @@ import { Header } from './components/Header';
 import { Footer } from './components/Footer';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
+import { DeveloperModal } from './components/DeveloperModal';
+import { DatabasePoolModal } from './components/DatabasePoolModal';
 import { Home } from './pages/Home';
 import { Share } from './pages/Share';
 import { NotFound } from './pages/NotFound';
-import { runLocalCleanup, checkSupabaseHealth } from './lib/storage-service';
+import {
+  runLocalCleanup,
+  runSupabaseAutoPurge,
+  checkSupabaseHealth,
+} from './lib/storage-service';
 import type { SupabaseHealth } from './lib/storage-service';
 
 export function App() {
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
+  const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
+  const [isDatabasePoolOpen, setIsDatabasePoolOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseHealth | null>(null);
   const [dismissBanner, setDismissBanner] = useState(false);
@@ -28,17 +36,21 @@ export function App() {
 
   // Health check on Supabase connection
   useEffect(() => {
-    checkSupabaseHealth().then(status => {
+    checkSupabaseHealth().then((status) => {
       setSupabaseStatus(status);
     });
   }, []);
 
-  // Periodic cleanup check every 60 seconds
+  // Periodic cleanup check: purges expired files from local storage & Supabase every 60 seconds
   useEffect(() => {
     runLocalCleanup();
+    runSupabaseAutoPurge();
+
     const interval = setInterval(() => {
       runLocalCleanup();
+      runSupabaseAutoPurge();
     }, 60000);
+
     return () => clearInterval(interval);
   }, []);
 
@@ -59,11 +71,21 @@ export function App() {
   // Route matching
   const renderCurrentView = () => {
     if (currentPath === '/' || currentPath === '') {
-      return <Home onNavigateToShare={handleNavigateToShare} />;
+      return (
+        <Home
+          onNavigateToShare={handleNavigateToShare}
+          onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+        />
+      );
     }
 
     if (currentPath.startsWith('/s/')) {
-      const cleanPath = currentPath.slice(3).split('?')[0].split('#')[0].replace(/\/+$/, '').trim();
+      const cleanPath = currentPath
+        .slice(3)
+        .split('?')[0]
+        .split('#')[0]
+        .replace(/\/+$/, '')
+        .trim();
       const rawToken = decodeURIComponent(cleanPath);
       if (!rawToken) {
         return <NotFound onGoHome={handleGoHome} />;
@@ -108,8 +130,10 @@ export function App() {
         </div>
       )}
 
+      {/* Brand Header with Developer Profile & 5-Node Pool Manager */}
       <Header
-        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+        onOpenDeveloper={() => setIsDeveloperOpen(true)}
+        onOpenDatabasePool={() => setIsDatabasePoolOpen(true)}
         onGoHome={handleGoHome}
       />
 
@@ -117,18 +141,36 @@ export function App() {
         {renderCurrentView()}
       </main>
 
-      <Footer />
+      {/* Footer with How It Works, Developer credit, Privacy, Terms */}
+      <Footer
+        onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
+        onOpenDeveloper={() => setIsDeveloperOpen(true)}
+      />
 
+      {/* Developer Profile Modal (shivagopi) */}
+      <DeveloperModal
+        isOpen={isDeveloperOpen}
+        onClose={() => setIsDeveloperOpen(false)}
+        onOpenDatabasePool={() => setIsDatabasePoolOpen(true)}
+      />
+
+      {/* 5-Node Supabase Pool & Load Balancer Manager */}
+      <DatabasePoolModal
+        isOpen={isDatabasePoolOpen}
+        onClose={() => setIsDatabasePoolOpen(false)}
+      />
+
+      {/* How It Works Modal */}
       <HowItWorksModal
         isOpen={isHowItWorksOpen}
         onClose={() => setIsHowItWorksOpen(false)}
       />
 
+      {/* Supabase Single-Node Setup Modal */}
       <SupabaseSetupModal
         isOpen={isSetupModalOpen}
         onClose={() => {
           setIsSetupModalOpen(false);
-          // Re-check health after closing setup modal
           checkSupabaseHealth().then(setSupabaseStatus);
         }}
         supabaseUrl={import.meta.env.VITE_SUPABASE_URL}
