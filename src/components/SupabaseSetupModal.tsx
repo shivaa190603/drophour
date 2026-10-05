@@ -92,8 +92,10 @@ export const SupabaseSetupModal: React.FC<SupabaseSetupModalProps> = ({
   if (!isOpen) return null;
 
   // Extract project ref from URL if possible
-  const projectRef = supabaseUrl ? supabaseUrl.replace('https://', '').split('.')[0] : 'nimqhkfbwaepcaqsvjky';
-  const sqlEditorUrl = `https://supabase.com/dashboard/project/${projectRef}/sql/new`;
+  const projectRef = supabaseUrl ? supabaseUrl.replace('https://', '').split('.')[0] : '';
+  const sqlEditorUrl = projectRef
+    ? `https://supabase.com/dashboard/project/${projectRef}/sql/new`
+    : 'https://supabase.com/dashboard';
 
   const handleCopy = async () => {
     try {

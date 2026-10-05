@@ -172,8 +172,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
   const handleRazorpayPay = () => {
     setErrorMsg(null);
-    const razorpayKey =
-      import.meta.env.VITE_RAZORPAY_KEY_ID || 'rzp_test_TkKDkDLlzwDeIW';
+    const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
 
     if (typeof window.Razorpay === 'undefined') {
       setErrorMsg('Razorpay SDK is loading. You can scan the UPI QR code directly below.');
@@ -423,7 +422,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
                 <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded p-2 text-xs text-[#171717] font-mono flex items-center justify-between">
                   <span className="text-[#666666]">UPI VPA:</span>
-                  <span className="font-semibold">{import.meta.env.VITE_UPI_ID || 'shivaxroy@ybl'}</span>
+                  <span className="font-semibold">{import.meta.env.VITE_UPI_ID || 'pay@upi'}</span>
                 </div>
 
                 {/* Auto-Read & Input Section */}

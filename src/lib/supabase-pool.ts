@@ -23,16 +23,11 @@ const ENV_NODES: SupabaseNodeConfig[] = [
   {
     id: 'db-1',
     name: 'Database Node 1 (Primary)',
-    url:
-      import.meta.env.VITE_SUPABASE_URL ||
-      'https://nimqhkfbwaepcaqsvjky.supabase.co',
-    anonKey:
-      import.meta.env.VITE_SUPABASE_ANON_KEY ||
-      'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6Im5pbXFoa2Zid2FlcGNhcXN2amt5Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3OTExNjE2MTksImV4cCI6MjEwNjczNzYxOX0.FWT2Fc3lPfDVhVSXAlAeR2OVbNnr2HdkCjSgPryud74',
+    url: import.meta.env.VITE_SUPABASE_URL || '',
+    anonKey: import.meta.env.VITE_SUPABASE_ANON_KEY || '',
     capacityBytes: 500 * 1024 * 1024,
     isConfigured: Boolean(
-      import.meta.env.VITE_SUPABASE_URL ||
-        'https://nimqhkfbwaepcaqsvjky.supabase.co'
+      import.meta.env.VITE_SUPABASE_URL && import.meta.env.VITE_SUPABASE_ANON_KEY
     ),
     isPrimary: true,
   },
