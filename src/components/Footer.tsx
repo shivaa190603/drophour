@@ -97,7 +97,7 @@ export const Footer: React.FC<FooterProps> = ({
               onClick={handleContactClick}
               className="text-[#171717] font-semibold hover:underline transition-colors flex items-center gap-1"
             >
-              Contact (Detailed)
+              Contact
             </button>
           </div>
         </div>

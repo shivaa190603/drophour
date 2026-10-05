@@ -20,7 +20,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
   onOpenContact,
 }) => {
   const [copied, setCopied] = useState(false);
-  const email = 'shivagopi@gmail.com';
+  const email = 'shivaa190603@gmail.com';
   const githubUrl = 'https://github.com/shivaa1906';
 
   if (!isOpen) return null;
@@ -155,7 +155,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
               className="text-xs text-[#171717] font-semibold underline hover:text-[#2563EB] flex items-center gap-1.5"
             >
               <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
-              <span>Detailed Contact &amp; Inquiries</span>
+              <span>Contact &amp; Support</span>
             </button>
           ) : (
             <div />

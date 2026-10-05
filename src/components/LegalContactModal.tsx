@@ -8,16 +8,13 @@ import {
   ExternalLink,
   Shield,
   FileText,
-  Send,
   Clock,
   Lock,
   AlertCircle,
-  MessageSquare,
   HelpCircle,
   CreditCard,
   Globe,
   Trash2,
-  CheckCircle2,
 } from 'lucide-react';
 
 export type LegalTab = 'privacy' | 'terms' | 'contact';
@@ -35,14 +32,6 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
 }) => {
   const [selectedTab, setSelectedTab] = useState<LegalTab | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
-  const [copiedMsg, setCopiedMsg] = useState(false);
-
-  // Quick message form state
-  const [senderName, setSenderName] = useState('');
-  const [senderEmail, setSenderEmail] = useState('');
-  const [inquiryType, setInquiryType] = useState('General Support');
-  const [messageText, setMessageText] = useState('');
-  const [formFeedback, setFormFeedback] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -50,62 +39,16 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
 
   const handleClose = () => {
     setSelectedTab(null);
-    setFormFeedback(null);
     onClose();
   };
 
-  const developerEmail = 'shivagopi@gmail.com';
+  const developerEmail = 'shivaa190603@gmail.com';
   const githubProfile = 'https://github.com/shivaa1906';
-  const githubRepo = 'https://github.com/shivaa1906/shareeverywhere';
 
   const handleCopyEmail = () => {
     navigator.clipboard.writeText(developerEmail);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
-  };
-
-  const handleQuickTopicClick = (subject: string, defaultBody: string) => {
-    setInquiryType(subject);
-    if (!messageText) {
-      setMessageText(defaultBody);
-    }
-    const mailto = `mailto:${developerEmail}?subject=${encodeURIComponent(
-      `[DropHour] ${subject}`
-    )}&body=${encodeURIComponent(defaultBody)}`;
-    window.location.href = mailto;
-  };
-
-  const handleSendMessage = (e: React.FormEvent) => {
-    e.preventDefault();
-    if (!messageText.trim()) {
-      setFormFeedback('Please enter your message before sending.');
-      return;
-    }
-
-    const fullSubject = `[DropHour ${inquiryType}] ${senderName ? `From ${senderName}` : 'Support Inquiry'}`;
-    const formattedBody = `Name: ${senderName || 'Anonymous'}\nEmail: ${
-      senderEmail || 'Not provided'
-    }\nCategory: ${inquiryType}\nDate: ${new Date().toLocaleString()}\n\nMessage:\n${messageText.trim()}`;
-
-    // Launch user's default email client
-    const mailtoUrl = `mailto:${developerEmail}?subject=${encodeURIComponent(
-      fullSubject
-    )}&body=${encodeURIComponent(formattedBody)}`;
-
-    window.location.href = mailtoUrl;
-
-    setFormFeedback(
-      'Email client opened! If your email app did not launch, click "Copy Formatted Message" to paste into Gmail.'
-    );
-  };
-
-  const handleCopyMessage = () => {
-    const formattedBody = `To: ${developerEmail}\nSubject: [DropHour ${inquiryType}]\nName: ${
-      senderName || 'Anonymous'
-    }\nEmail: ${senderEmail || 'Not provided'}\n\nMessage:\n${messageText.trim()}`;
-    navigator.clipboard.writeText(formattedBody);
-    setCopiedMsg(true);
-    setTimeout(() => setCopiedMsg(false), 2000);
   };
 
   return (
@@ -161,7 +104,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
             }`}
           >
             <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
-            <span>Contact Us (Detailed)</span>
+            <span>Contact</span>
           </button>
 
           <button
@@ -197,7 +140,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
           {/* CONTACT TAB */}
           {/* ========================================================= */}
           {activeTab === 'contact' && (
-            <div className="space-y-6">
+            <div className="space-y-5">
               {/* Introduction Banner */}
               <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-4">
                 <div className="flex items-start gap-3">
@@ -206,22 +149,20 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                   </div>
                   <div>
                     <h3 className="font-bold text-sm text-[#171717]">
-                      Direct Developer &amp; Platform Support
+                      Developer &amp; Platform Support
                     </h3>
                     <p className="text-xs text-[#666666] mt-0.5 leading-relaxed">
-                      DropHour is designed, developed, and maintained by{' '}
-                      <strong>shivagopi</strong>. Whether you have a bug report, payment
-                      assistance request, copyright removal notice, or general feedback, you can
-                      reach out directly through the channels below.
+                      DropHour is designed and maintained by <strong>shivagopi</strong>. For support,
+                      inquiries, or feedback, feel free to reach out via email or GitHub.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Contact Detail Cards */}
+              {/* Clean Contact Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Official Email */}
-                <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2">
+                <div className="p-4 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
@@ -253,7 +194,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                     {developerEmail}
                   </a>
                   <p className="text-[11px] text-[#666666]">
-                    Primary contact for all inquiries, bug reports &amp; payments.
+                    Direct contact for all questions, feedback, and support.
                   </p>
                 </div>
 
@@ -262,7 +203,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                   href={githubProfile}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2 hover:border-[#171717] transition-colors block"
+                  className="p-4 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2 hover:border-[#171717] transition-colors block"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
@@ -275,228 +216,10 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                   </div>
                   <div className="font-bold text-sm text-[#171717]">github.com/shivaa1906</div>
                   <p className="text-[11px] text-[#666666]">
-                    View open source projects, developer profile &amp; activity.
+                    View open source projects, profile &amp; activity.
                   </p>
                 </a>
-
-                {/* Source Repository */}
-                <a
-                  href={githubRepo}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2 hover:border-[#171717] transition-colors block"
-                >
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
-                      <FileText className="w-3.5 h-3.5 text-[#2563EB]" />
-                      Project Repository
-                    </span>
-                    <ExternalLink className="w-3.5 h-3.5 text-[#666666]" />
-                  </div>
-                  <div className="font-bold text-sm text-[#171717]">shivaa1906/shareeverywhere</div>
-                  <p className="text-[11px] text-[#666666]">
-                    Submit issues, inspect schema migrations &amp; audit code.
-                  </p>
-                </a>
-
-                {/* SLA / Hours */}
-                <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2">
-                  <div className="flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
-                      <Clock className="w-3.5 h-3.5 text-[#D97706]" />
-                      Response &amp; Location
-                    </span>
-                    <span className="text-[10px] bg-[#DCFCE7] text-[#166534] font-semibold px-2 py-0.5 rounded-full">
-                      Active
-                    </span>
-                  </div>
-                  <div className="font-bold text-sm text-[#171717]">India (IST · UTC+5:30)</div>
-                  <p className="text-[11px] text-[#666666]">
-                    Average email response turnaround within 24 to 48 hours.
-                  </p>
-                </div>
               </div>
-
-              {/* Quick Inquiry Buttons */}
-              <div className="space-y-2.5">
-                <h4 className="text-xs font-bold text-[#171717] uppercase tracking-wider">
-                  Quick Inquiries &amp; Topics
-                </h4>
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2 text-xs">
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickTopicClick(
-                        'Bug Report',
-                        'Hello shivagopi,\n\nI encountered an issue with DropHour:\n- Description: \n- File name/size: \n- Browser: '
-                      )
-                    }
-                    className="p-2.5 bg-[#F7F7F5] border border-[#D9D9D9] rounded hover:border-[#171717] text-left transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-semibold text-[#171717] block">🐛 Bug Report</span>
-                      <span className="text-[11px] text-[#666666]">Upload or download issues</span>
-                    </div>
-                    <Send className="w-3.5 h-3.5 text-[#666666] group-hover:text-[#171717]" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickTopicClick(
-                        'Billing Assistance',
-                        'Hello shivagopi,\n\nI have a question regarding my payment on DropHour:\n- Transaction ID / UPI UTR: \n- Amount: \n- Issue details: '
-                      )
-                    }
-                    className="p-2.5 bg-[#F7F7F5] border border-[#D9D9D9] rounded hover:border-[#171717] text-left transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-semibold text-[#171717]">💳 Payment Assistance</span>
-                      <span className="text-[11px] text-[#666666] block">Razorpay or UPI verification</span>
-                    </div>
-                    <Send className="w-3.5 h-3.5 text-[#666666] group-hover:text-[#171717]" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickTopicClick(
-                        'DMCA Takedown',
-                        'Hello shivagopi,\n\nUrgent Takedown Request:\n- Share Token or Code: \n- Reason: \n- Proof of ownership: '
-                      )
-                    }
-                    className="p-2.5 bg-[#F7F7F5] border border-[#D9D9D9] rounded hover:border-[#171717] text-left transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-semibold text-[#171717]">⚖️ DMCA / Abuse Notice</span>
-                      <span className="text-[11px] text-[#666666] block">Immediate file destruction request</span>
-                    </div>
-                    <Send className="w-3.5 h-3.5 text-[#666666] group-hover:text-[#171717]" />
-                  </button>
-
-                  <button
-                    type="button"
-                    onClick={() =>
-                      handleQuickTopicClick(
-                        'Feature Suggestion',
-                        'Hello shivagopi,\n\nI have an idea for DropHour:\n- Suggestion: \n- How it helps: '
-                      )
-                    }
-                    className="p-2.5 bg-[#F7F7F5] border border-[#D9D9D9] rounded hover:border-[#171717] text-left transition-colors flex items-center justify-between group"
-                  >
-                    <div>
-                      <span className="font-semibold text-[#171717]">💡 Feature Suggestion</span>
-                      <span className="text-[11px] text-[#666666] block">Feedback &amp; improvements</span>
-                    </div>
-                    <Send className="w-3.5 h-3.5 text-[#666666] group-hover:text-[#171717]" />
-                  </button>
-                </div>
-              </div>
-
-              {/* Direct Message Composer */}
-              <form onSubmit={handleSendMessage} className="space-y-3 pt-2 border-t border-[#D9D9D9]">
-                <div className="flex items-center justify-between">
-                  <h4 className="text-xs font-bold text-[#171717] uppercase tracking-wider flex items-center gap-1.5">
-                    <MessageSquare className="w-3.5 h-3.5 text-[#2563EB]" />
-                    Send a Message to shivagopi
-                  </h4>
-                  <span className="text-[11px] text-[#666666]">Opens in your email app</span>
-                </div>
-
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
-                      Your Name
-                    </label>
-                    <input
-                      type="text"
-                      value={senderName}
-                      onChange={(e) => setSenderName(e.target.value)}
-                      placeholder="e.g. Alex"
-                      className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
-                    />
-                  </div>
-
-                  <div>
-                    <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
-                      Your Email (Optional)
-                    </label>
-                    <input
-                      type="email"
-                      value={senderEmail}
-                      onChange={(e) => setSenderEmail(e.target.value)}
-                      placeholder="alex@example.com"
-                      className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
-                    />
-                  </div>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
-                    Inquiry Category
-                  </label>
-                  <select
-                    value={inquiryType}
-                    onChange={(e) => setInquiryType(e.target.value)}
-                    className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
-                  >
-                    <option value="General Support">General Support &amp; Question</option>
-                    <option value="Bug Report">Bug Report / Technical Issue</option>
-                    <option value="Billing Assistance">Payment / UPI UTR Verification</option>
-                    <option value="DMCA Takedown">Urgent DMCA / Abuse Removal</option>
-                    <option value="Feature Suggestion">Feature Suggestion &amp; Feedback</option>
-                  </select>
-                </div>
-
-                <div>
-                  <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
-                    Message Details *
-                  </label>
-                  <textarea
-                    rows={4}
-                    value={messageText}
-                    onChange={(e) => setMessageText(e.target.value)}
-                    placeholder="Type your message, issue details, or feedback here..."
-                    className="w-full text-xs p-3 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717] resize-none"
-                    required
-                  />
-                </div>
-
-                {formFeedback && (
-                  <div className="p-3 bg-[#F0FDF4] border border-[#BBF7D0] rounded text-xs text-[#166534] flex items-start gap-2">
-                    <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0 mt-0.5" />
-                    <span>{formFeedback}</span>
-                  </div>
-                )}
-
-                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
-                  <button
-                    type="button"
-                    onClick={handleCopyMessage}
-                    className="text-xs text-[#666666] hover:text-[#171717] border border-[#D9D9D9] px-3 py-2 rounded flex items-center gap-1.5 hover:bg-[#F7F7F5] transition-colors"
-                  >
-                    {copiedMsg ? (
-                      <>
-                        <Check className="w-3.5 h-3.5 text-[#16A34A]" />
-                        <span className="text-[#16A34A]">Message Copied!</span>
-                      </>
-                    ) : (
-                      <>
-                        <Copy className="w-3.5 h-3.5" />
-                        <span>Copy Formatted Message</span>
-                      </>
-                    )}
-                  </button>
-
-                  <button
-                    type="submit"
-                    className="px-4 py-2 bg-[#171717] hover:bg-black text-[#FFFFFF] text-xs font-semibold rounded flex items-center gap-2 transition-colors"
-                  >
-                    <Send className="w-3.5 h-3.5" />
-                    <span>Send Email to shivagopi</span>
-                  </button>
-                </div>
-              </form>
             </div>
           )}
 
