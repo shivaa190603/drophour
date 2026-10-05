@@ -15,6 +15,9 @@ import {
   CreditCard,
   Globe,
   Trash2,
+  Send,
+  MessageSquare,
+  CheckCircle2,
 } from 'lucide-react';
 
 export type LegalTab = 'privacy' | 'terms' | 'contact';
@@ -32,6 +35,14 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
 }) => {
   const [selectedTab, setSelectedTab] = useState<LegalTab | null>(null);
   const [copiedEmail, setCopiedEmail] = useState(false);
+  const [copiedCleanMsg, setCopiedCleanMsg] = useState(false);
+
+  // Gmail support form state
+  const [senderName, setSenderName] = useState('');
+  const [senderEmail, setSenderEmail] = useState('');
+  const [inquiryCategory, setInquiryCategory] = useState('General Inquiry & Support');
+  const [messageContent, setMessageContent] = useState('');
+  const [feedbackMsg, setFeedbackMsg] = useState<string | null>(null);
 
   if (!isOpen) return null;
 
@@ -39,6 +50,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
 
   const handleClose = () => {
     setSelectedTab(null);
+    setFeedbackMsg(null);
     onClose();
   };
 
@@ -49,6 +61,80 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
     navigator.clipboard.writeText(developerEmail);
     setCopiedEmail(true);
     setTimeout(() => setCopiedEmail(false), 2000);
+  };
+
+  const formatCleanEmailBody = () => {
+    return [
+      '==================================================',
+      '           DROPHOUR USER SUPPORT INQUIRY          ',
+      '==================================================',
+      `Sender Name:   ${senderName.trim() || 'Anonymous User'}`,
+      `Sender Email:  ${senderEmail.trim() || 'Not provided'}`,
+      `Topic:         ${inquiryCategory}`,
+      `Date & Time:   ${new Date().toLocaleString()}`,
+      '',
+      '-------------------- MESSAGE ---------------------',
+      messageContent.trim(),
+      '--------------------------------------------------',
+      'Sent via:      DropHour Ephemeral Sharing Portal',
+      `Developer:     shivagopi (${developerEmail})`,
+      '==================================================',
+    ].join('\n');
+  };
+
+  const getCleanSubject = () => {
+    const sender = senderName.trim() ? `from ${senderName.trim()}` : 'Support Request';
+    return `[DropHour] ${inquiryCategory} (${sender})`;
+  };
+
+  const handleSendViaGmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!messageContent.trim()) {
+      setFeedbackMsg('Please enter your message details before sending.');
+      return;
+    }
+
+    const subject = getCleanSubject();
+    const body = formatCleanEmailBody();
+
+    // Gmail Web direct compose URL
+    const gmailUrl = `https://mail.google.com/mail/?view=cm&fs=1&to=${encodeURIComponent(
+      developerEmail
+    )}&su=${encodeURIComponent(subject)}&body=${encodeURIComponent(body)}`;
+
+    window.open(gmailUrl, '_blank', 'noopener,noreferrer');
+    setFeedbackMsg('Opening Gmail in a new tab with your pre-filled, formatted message!');
+  };
+
+  const handleSendViaMailApp = () => {
+    if (!messageContent.trim()) {
+      setFeedbackMsg('Please enter your message details before sending.');
+      return;
+    }
+
+    const subject = getCleanSubject();
+    const body = formatCleanEmailBody();
+
+    // Standard mailto client URL
+    const mailtoUrl = `mailto:${developerEmail}?subject=${encodeURIComponent(
+      subject
+    )}&body=${encodeURIComponent(body)}`;
+
+    window.location.href = mailtoUrl;
+    setFeedbackMsg('Opening your default email application with your pre-filled message!');
+  };
+
+  const handleCopyCleanMessage = () => {
+    if (!messageContent.trim()) {
+      setFeedbackMsg('Please type your message first before copying.');
+      return;
+    }
+
+    const cleanFullMessage = `To: ${developerEmail}\nSubject: ${getCleanSubject()}\n\n${formatCleanEmailBody()}`;
+    navigator.clipboard.writeText(cleanFullMessage);
+    setCopiedCleanMsg(true);
+    setFeedbackMsg('Clean formatted message copied to clipboard!');
+    setTimeout(() => setCopiedCleanMsg(false), 2500);
   };
 
   return (
@@ -104,7 +190,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
             }`}
           >
             <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
-            <span>Contact</span>
+            <span>Contact &amp; Support</span>
           </button>
 
           <button
@@ -152,21 +238,21 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                       Developer &amp; Platform Support
                     </h3>
                     <p className="text-xs text-[#666666] mt-0.5 leading-relaxed">
-                      DropHour is designed and maintained by <strong>shivagopi</strong>. For support,
-                      inquiries, or feedback, feel free to reach out via email or GitHub.
+                      DropHour is designed and maintained by <strong>shivagopi</strong>. You can reach out
+                      directly via Gmail using the quick contact form below or through our direct channels.
                     </p>
                   </div>
                 </div>
               </div>
 
-              {/* Clean Contact Cards */}
+              {/* Direct Channels Cards */}
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
                 {/* Official Email */}
-                <div className="p-4 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2">
+                <div className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2">
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
                       <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
-                      Official Email
+                      Official Gmail
                     </span>
                     <button
                       type="button"
@@ -194,7 +280,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                     {developerEmail}
                   </a>
                   <p className="text-[11px] text-[#666666]">
-                    Direct contact for all questions, feedback, and support.
+                    Direct inbox monitored for support, payments &amp; feedback.
                   </p>
                 </div>
 
@@ -203,7 +289,7 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                   href={githubProfile}
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="p-4 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2 hover:border-[#171717] transition-colors block"
+                  className="p-3.5 bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg space-y-2 hover:border-[#171717] transition-colors block"
                 >
                   <div className="flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-[#666666] uppercase flex items-center gap-1.5">
@@ -216,10 +302,140 @@ export const LegalContactModal: React.FC<LegalContactModalProps> = ({
                   </div>
                   <div className="font-bold text-sm text-[#171717]">github.com/shivaa1906</div>
                   <p className="text-[11px] text-[#666666]">
-                    View open source projects, profile &amp; activity.
+                    View source code, developer activity &amp; issues.
                   </p>
                 </a>
               </div>
+
+              {/* Gmail Support Composer Form */}
+              <form onSubmit={handleSendViaGmail} className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-4 sm:p-5 space-y-3.5">
+                <div className="flex items-center justify-between border-b border-[#D9D9D9] pb-3">
+                  <div className="flex items-center gap-2">
+                    <div className="w-6 h-6 rounded bg-[#EA4335] text-white flex items-center justify-center">
+                      <Mail className="w-3.5 h-3.5 text-white" />
+                    </div>
+                    <div>
+                      <h4 className="font-bold text-xs text-[#171717] uppercase tracking-wider">
+                        Gmail Support Composer
+                      </h4>
+                      <p className="text-[11px] text-[#666666]">
+                        Pre-formats your inquiry cleanly and opens directly in Gmail
+                      </p>
+                    </div>
+                  </div>
+                  <span className="text-[11px] font-semibold text-[#16A34A] bg-[#DCFCE7] px-2 py-0.5 rounded">
+                    Direct Send
+                  </span>
+                </div>
+
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
+                      Your Name
+                    </label>
+                    <input
+                      type="text"
+                      value={senderName}
+                      onChange={(e) => setSenderName(e.target.value)}
+                      placeholder="e.g. Alex"
+                      className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
+                    />
+                  </div>
+
+                  <div>
+                    <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
+                      Your Email Address (Optional)
+                    </label>
+                    <input
+                      type="email"
+                      value={senderEmail}
+                      onChange={(e) => setSenderEmail(e.target.value)}
+                      placeholder="alex@example.com"
+                      className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
+                    />
+                  </div>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
+                    Inquiry Topic
+                  </label>
+                  <select
+                    value={inquiryCategory}
+                    onChange={(e) => setInquiryCategory(e.target.value)}
+                    className="w-full text-xs px-3 py-2 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717]"
+                  >
+                    <option value="General Inquiry & Support">General Inquiry &amp; Support</option>
+                    <option value="Bug Report / Technical Issue">🐛 Bug Report / Technical Issue</option>
+                    <option value="Payment & UPI Verification">💳 Payment &amp; UPI / Razorpay Support</option>
+                    <option value="DMCA / Content Takedown">⚖️ DMCA / Content Removal Request</option>
+                    <option value="Feature Suggestion">💡 Feature Suggestion &amp; Feedback</option>
+                  </select>
+                </div>
+
+                <div>
+                  <label className="block text-[11px] font-semibold text-[#666666] uppercase mb-1">
+                    Message Details *
+                  </label>
+                  <textarea
+                    rows={4}
+                    value={messageContent}
+                    onChange={(e) => setMessageContent(e.target.value)}
+                    placeholder="Enter your message, issue description, or question here..."
+                    className="w-full text-xs p-3 bg-[#FFFFFF] border border-[#D9D9D9] rounded focus:outline-none focus:border-[#171717] resize-none"
+                    required
+                  />
+                </div>
+
+                {feedbackMsg && (
+                  <div className="p-2.5 bg-[#F0FDF4] border border-[#BBF7D0] rounded text-xs text-[#166534] flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4 text-[#16A34A] shrink-0" />
+                    <span>{feedbackMsg}</span>
+                  </div>
+                )}
+
+                {/* Form Buttons */}
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-1">
+                  <button
+                    type="button"
+                    onClick={handleCopyCleanMessage}
+                    className="text-xs text-[#666666] hover:text-[#171717] border border-[#D9D9D9] bg-[#FFFFFF] px-3 py-2 rounded flex items-center gap-1.5 hover:bg-[#F7F7F5] transition-colors"
+                  >
+                    {copiedCleanMsg ? (
+                      <>
+                        <Check className="w-3.5 h-3.5 text-[#16A34A]" />
+                        <span className="text-[#16A34A] font-medium">Copied Clean Format!</span>
+                      </>
+                    ) : (
+                      <>
+                        <Copy className="w-3.5 h-3.5" />
+                        <span>Copy Clean Format</span>
+                      </>
+                    )}
+                  </button>
+
+                  <div className="flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={handleSendViaMailApp}
+                      className="px-3.5 py-2 bg-[#FFFFFF] hover:bg-[#EAEAEA] text-[#171717] border border-[#D9D9D9] text-xs font-semibold rounded flex items-center gap-1.5 transition-colors"
+                      title="Open in your default email program (Outlook, Mail, Thunderbird)"
+                    >
+                      <MessageSquare className="w-3.5 h-3.5 text-[#2563EB]" />
+                      <span>Mail App</span>
+                    </button>
+
+                    <button
+                      type="submit"
+                      className="px-4 py-2 bg-[#EA4335] hover:bg-[#D93025] text-white text-xs font-semibold rounded flex items-center gap-1.5 transition-colors shadow-sm"
+                      title="Open in Gmail Web with pre-filled formatted body"
+                    >
+                      <Send className="w-3.5 h-3.5" />
+                      <span>Send via Gmail</span>
+                    </button>
+                  </div>
+                </div>
+              </form>
             </div>
           )}
 
