@@ -5,6 +5,7 @@ import { Footer } from './components/Footer';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 import { DeveloperModal } from './components/DeveloperModal';
+import { LegalContactModal, type LegalTab } from './components/LegalContactModal';
 import { Home } from './pages/Home';
 import { Share } from './pages/Share';
 import { NotFound } from './pages/NotFound';
@@ -20,12 +21,29 @@ export function App() {
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
+
+  // Initial legal tab based on current URL path
+  const getInitialLegalTab = (path: string): LegalTab | null => {
+    if (path === '/privacy') return 'privacy';
+    if (path === '/terms') return 'terms';
+    if (path === '/contact') return 'contact';
+    return null;
+  };
+
+  const [legalModalTab, setLegalModalTab] = useState<LegalTab | null>(() =>
+    getInitialLegalTab(window.location.pathname)
+  );
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseHealth | null>(null);
   const [dismissBanner, setDismissBanner] = useState(false);
 
   useEffect(() => {
     const handlePopState = () => {
-      setCurrentPath(window.location.pathname);
+      const path = window.location.pathname;
+      setCurrentPath(path);
+      const matchedLegalTab = getInitialLegalTab(path);
+      if (matchedLegalTab) {
+        setLegalModalTab(matchedLegalTab);
+      }
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -66,9 +84,27 @@ export function App() {
     navigateTo('/');
   };
 
+  const handleOpenLegalModal = (tab: LegalTab) => {
+    setLegalModalTab(tab);
+    window.history.pushState({}, '', `/${tab}`);
+    setCurrentPath(`/${tab}`);
+  };
+
+  const handleCloseLegalModal = () => {
+    setLegalModalTab(null);
+    if (['/privacy', '/terms', '/contact'].includes(window.location.pathname)) {
+      window.history.pushState({}, '', '/');
+      setCurrentPath('/');
+    }
+  };
+
   // Route matching
   const renderCurrentView = () => {
-    if (currentPath === '/' || currentPath === '') {
+    if (
+      currentPath === '/' ||
+      currentPath === '' ||
+      ['/privacy', '/terms', '/contact'].includes(currentPath)
+    ) {
       return (
         <Home
           onNavigateToShare={handleNavigateToShare}
@@ -128,9 +164,10 @@ export function App() {
         </div>
       )}
 
-      {/* Brand Header with Developer Profile */}
+      {/* Brand Header with Developer Profile & Contact */}
       <Header
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
+        onOpenContact={() => handleOpenLegalModal('contact')}
         onGoHome={handleGoHome}
       />
 
@@ -138,22 +175,33 @@ export function App() {
         {renderCurrentView()}
       </main>
 
-      {/* Footer with How It Works, Developer credit, Privacy, Terms */}
+      {/* Footer with How It Works, Developer credit, Privacy, Terms, Contact */}
       <Footer
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
+        onOpenPrivacy={() => handleOpenLegalModal('privacy')}
+        onOpenTerms={() => handleOpenLegalModal('terms')}
+        onOpenContact={() => handleOpenLegalModal('contact')}
       />
 
       {/* Developer Profile Modal (shivagopi) */}
       <DeveloperModal
         isOpen={isDeveloperOpen}
         onClose={() => setIsDeveloperOpen(false)}
+        onOpenContact={() => handleOpenLegalModal('contact')}
       />
 
       {/* How It Works Modal */}
       <HowItWorksModal
         isOpen={isHowItWorksOpen}
         onClose={() => setIsHowItWorksOpen(false)}
+      />
+
+      {/* Detailed Legal & Contact Modal (Privacy, Terms, Detailed Contact) */}
+      <LegalContactModal
+        isOpen={legalModalTab !== null}
+        initialTab={legalModalTab || 'contact'}
+        onClose={handleCloseLegalModal}
       />
 
       {/* Supabase Setup Modal */}

@@ -1,14 +1,16 @@
 import React from 'react';
-import { Clock, User } from 'lucide-react';
+import { Clock, User, Mail } from 'lucide-react';
 
 interface HeaderProps {
   onOpenDeveloper: () => void;
   onGoHome: () => void;
+  onOpenContact?: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDeveloper,
   onGoHome,
+  onOpenContact,
 }) => {
   return (
     <header className="w-full border-b border-[#D9D9D9] bg-[#FFFFFF]">
@@ -26,7 +28,18 @@ export const Header: React.FC<HeaderProps> = ({
         </button>
 
         {/* Navigation */}
-        <nav className="flex items-center gap-2 sm:gap-3">
+        <nav className="flex items-center gap-2 sm:gap-2.5">
+          {onOpenContact && (
+            <button
+              onClick={onOpenContact}
+              className="flex items-center gap-1.5 text-xs sm:text-sm font-medium text-[#666666] hover:text-[#171717] bg-[#FFFFFF] hover:bg-[#F7F7F5] border border-[#D9D9D9] px-2.5 sm:px-3 py-1.5 rounded transition-colors"
+              aria-label="Detailed Contact Information"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
+              <span className="hidden xs:inline">Contact</span>
+            </button>
+          )}
+
           {/* Developer button (shivagopi) */}
           <button
             onClick={onOpenDeveloper}

@@ -11,11 +11,13 @@ import {
 interface DeveloperModalProps {
   isOpen: boolean;
   onClose: () => void;
+  onOpenContact?: () => void;
 }
 
 export const DeveloperModal: React.FC<DeveloperModalProps> = ({
   isOpen,
   onClose,
+  onOpenContact,
 }) => {
   const [copied, setCopied] = useState(false);
   const email = 'shivagopi@gmail.com';
@@ -142,7 +144,22 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
           </div>
         </div>
 
-        <div className="flex justify-end pt-2">
+        <div className="flex items-center justify-between pt-2">
+          {onOpenContact ? (
+            <button
+              type="button"
+              onClick={() => {
+                onClose();
+                onOpenContact();
+              }}
+              className="text-xs text-[#171717] font-semibold underline hover:text-[#2563EB] flex items-center gap-1.5"
+            >
+              <Mail className="w-3.5 h-3.5 text-[#EA4335]" />
+              <span>Detailed Contact &amp; Inquiries</span>
+            </button>
+          ) : (
+            <div />
+          )}
           <button
             onClick={onClose}
             className="px-4 py-2 bg-[#171717] hover:bg-black text-[#FFFFFF] rounded text-xs font-medium transition-colors"
