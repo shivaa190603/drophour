@@ -235,7 +235,7 @@ export async function uploadAndCreateShare(
       if (onProgress) onProgress(15);
 
       const { client: targetClient, node: targetNode } =
-        await selectOptimalSupabaseNode(file.size);
+        await selectOptimalSupabaseNode(file.size, isPaidTransfer);
 
       if (targetClient) {
         const datePath = `${now.getFullYear()}/${String(now.getMonth() + 1).padStart(2, '0')}`;

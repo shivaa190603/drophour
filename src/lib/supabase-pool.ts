@@ -169,15 +169,19 @@ export async function getNodeStatus(node: SupabaseNodeConfig): Promise<SupabaseN
 }
 
 /**
- * Smart Load Balancer:
- * Evaluates environment-configured Supabase nodes and selects the optimal node.
- * 1. Checks health and remaining capacity across all active nodes in the pool.
- * 2. If file > 50MB, routes to secondary nodes (Node 2-5) if configured, preserving Node 1.
- * 3. Chooses the node with highest remaining capacity.
- * 4. Automatically rolls over when a database runs out of space.
+ * Smart Load Balancer & Tier Router:
+ * Enforces the required storage pool distribution:
+ * - Free sharing (<= 50MB):
+ *     1. Primary: Use Node 1 (db-1).
+ *     2. Overflow: Use Node 2 (db-2) only when Node 1 has reached its capacity limit or is unavailable.
+ * - Paid sharing (> 50MB or paid transfers):
+ *     1. Strictly use secondary nodes: Node 3 (db-3), Node 4 (db-4), Node 5 (db-5).
+ *     2. Selects the healthiest node with highest remaining capacity among the paid pool.
+ *     3. Safe rollover fallback if paid nodes are not yet configured or full.
  */
 export async function selectOptimalSupabaseNode(
-  fileSizeBytes: number
+  fileSizeBytes: number,
+  isPaid: boolean = false
 ): Promise<{ client: SupabaseClient | null; node: SupabaseNodeConfig }> {
   const nodes = getPoolConfigs();
   const configuredNodes = nodes.filter((n) => n.isConfigured && n.url && n.anonKey);
@@ -204,29 +208,139 @@ export async function selectOptimalSupabaseNode(
     };
   }
 
-  // Find candidate nodes that have enough space for the incoming file (+ 5MB safety margin)
-  const candidateNodes = healthyNodes.filter(
-    (n) => n.remainingBytes >= fileSizeBytes + 5 * 1024 * 1024
-  );
+  const safetyMargin = 5 * 1024 * 1024; // 5 MB safety headroom
+  const hasSpace = (status: SupabaseNodeStatus) =>
+    status.remainingBytes >= fileSizeBytes + safetyMargin;
 
-  // If file > 50MB and we have secondary candidates (db-2, db-3, db-4, db-5), prioritize them
-  if (fileSizeBytes > 50 * 1024 * 1024) {
-    const secondaryCandidates = candidateNodes.filter((n) => n.id !== 'db-1');
-    if (secondaryCandidates.length > 0) {
-      secondaryCandidates.sort((a, b) => b.remainingBytes - a.remainingBytes);
-      const chosen = secondaryCandidates[0];
+  // -------------------------------------------------------------
+  // TIER 1: PAID TRANSFERS (>50MB or paid checkout)
+  // Routing Rule: Route to Node 3, Node 4, or Node 5
+  // -------------------------------------------------------------
+  if (isPaid || fileSizeBytes > 50 * 1024 * 1024) {
+    const paidCandidates = healthyNodes.filter(
+      (n) => ['db-3', 'db-4', 'db-5'].includes(n.id) && hasSpace(n)
+    );
+
+    if (paidCandidates.length > 0) {
+      // Prioritize Node 3, then Node 4, then Node 5, or by most available space
+      paidCandidates.sort((a, b) => b.remainingBytes - a.remainingBytes);
+      const chosen = paidCandidates[0];
+      return { client: getClientForNode(chosen), node: chosen };
+    }
+
+    // If 3, 4, 5 are not yet configured in environment or at capacity, fallback to Node 2 then Node 1
+    const overflowCandidates = healthyNodes.filter(
+      (n) => n.id === 'db-2' && hasSpace(n)
+    );
+    if (overflowCandidates.length > 0) {
+      const chosen = overflowCandidates[0];
+      return { client: getClientForNode(chosen), node: chosen };
+    }
+
+    // Fallback to any node with enough space
+    const anyAvailable = healthyNodes.filter(hasSpace);
+    if (anyAvailable.length > 0) {
+      anyAvailable.sort((a, b) => b.remainingBytes - a.remainingBytes);
+      const chosen = anyAvailable[0];
       return { client: getClientForNode(chosen), node: chosen };
     }
   }
 
+  // -------------------------------------------------------------
+  // TIER 2: FREE TRANSFERS (<= 50MB)
+  // Routing Rule: Use only Node 1. Use Node 2 only when Node 1 reaches limit!
+  // -------------------------------------------------------------
+  const node1 = healthyNodes.find((n) => n.id === 'db-1');
+  if (node1 && hasSpace(node1)) {
+    // Node 1 is healthy and has not reached its limit: use Node 1!
+    return { client: getClientForNode(node1), node: node1 };
+  }
+
+  // Node 1 reached its limit or is unhealthy: rollover to Node 2
+  const node2 = healthyNodes.find((n) => n.id === 'db-2');
+  if (node2 && hasSpace(node2)) {
+    console.info('[DropHour Router] Node 1 at limit or offline, rolling over free transfer to Node 2');
+    return { client: getClientForNode(node2), node: node2 };
+  }
+
+  // Both Node 1 and Node 2 reached limit: find any healthy candidate
+  const candidateNodes = healthyNodes.filter(hasSpace);
   if (candidateNodes.length > 0) {
     candidateNodes.sort((a, b) => b.remainingBytes - a.remainingBytes);
     const chosen = candidateNodes[0];
     return { client: getClientForNode(chosen), node: chosen };
   }
 
-  // Fallback: Pick the node with lowest used bytes
+  // Last-resort fallback: Pick node with lowest used bytes
   healthyNodes.sort((a, b) => a.estimatedUsedBytes - b.estimatedUsedBytes);
   const fallback = healthyNodes[0];
   return { client: getClientForNode(fallback), node: fallback };
 }
+
+/**
+ * Anti-Pausing Keep-Alive Heartbeat:
+ * Supabase free-tier projects automatically pause after 7 days of inactivity.
+ * This function sends an active lightweight query to ALL configured Supabase
+ * nodes (1, 2, 3, 4, 5) to register HTTP/REST and database activity so no node
+ * ever pauses due to inactivity!
+ */
+export async function pingAllSupabaseNodes(): Promise<{
+  id: string;
+  name: string;
+  success: boolean;
+  latencyMs: number;
+  message: string;
+}[]> {
+  const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
+
+  const results = await Promise.all(
+    nodes.map(async (node) => {
+      const client = getClientForNode(node);
+      if (!client) {
+        return {
+          id: node.id,
+          name: node.name,
+          success: false,
+          latencyMs: 0,
+          message: 'Client not initialized',
+        };
+      }
+
+      const start = Date.now();
+      try {
+        // Query 1 row from file_shares to trigger active database & API traffic in Supabase project
+        const { error } = await client.from('file_shares').select('id').limit(1);
+        const latencyMs = Date.now() - start;
+
+        if (error) {
+          return {
+            id: node.id,
+            name: node.name,
+            success: false,
+            latencyMs,
+            message: error.message,
+          };
+        }
+
+        return {
+          id: node.id,
+          name: node.name,
+          success: true,
+          latencyMs,
+          message: 'Active traffic registered (prevents 7-day pause)',
+        };
+      } catch (err) {
+        return {
+          id: node.id,
+          name: node.name,
+          success: false,
+          latencyMs: Date.now() - start,
+          message: err instanceof Error ? err.message : 'Ping failed',
+        };
+      }
+    })
+  );
+
+  return results;
+}
+

@@ -1,5 +1,7 @@
 import React, { useState } from 'react';
-import { LegalContactModal, type LegalTab } from './LegalContactModal';
+import { ContactModal } from './ContactModal';
+import { PrivacyModal } from './PrivacyModal';
+import { TermsModal } from './TermsModal';
 
 interface FooterProps {
   onOpenHowItWorks?: () => void;
@@ -17,13 +19,15 @@ export const Footer: React.FC<FooterProps> = ({
   onOpenContact,
 }) => {
   // Local fallback if callbacks are not provided
-  const [internalLegalTab, setInternalLegalTab] = useState<LegalTab | null>(null);
+  const [internalContactOpen, setInternalContactOpen] = useState(false);
+  const [internalPrivacyOpen, setInternalPrivacyOpen] = useState(false);
+  const [internalTermsOpen, setInternalTermsOpen] = useState(false);
 
   const handlePrivacyClick = () => {
     if (onOpenPrivacy) {
       onOpenPrivacy();
     } else {
-      setInternalLegalTab('privacy');
+      setInternalPrivacyOpen(true);
     }
   };
 
@@ -31,7 +35,7 @@ export const Footer: React.FC<FooterProps> = ({
     if (onOpenTerms) {
       onOpenTerms();
     } else {
-      setInternalLegalTab('terms');
+      setInternalTermsOpen(true);
     }
   };
 
@@ -39,7 +43,7 @@ export const Footer: React.FC<FooterProps> = ({
     if (onOpenContact) {
       onOpenContact();
     } else {
-      setInternalLegalTab('contact');
+      setInternalContactOpen(true);
     }
   };
 
@@ -103,11 +107,18 @@ export const Footer: React.FC<FooterProps> = ({
         </div>
       </footer>
 
-      {/* Internal Legal & Contact Modal fallback */}
-      <LegalContactModal
-        isOpen={internalLegalTab !== null}
-        initialTab={internalLegalTab || 'contact'}
-        onClose={() => setInternalLegalTab(null)}
+      {/* Internal Modals fallback */}
+      <ContactModal
+        isOpen={internalContactOpen}
+        onClose={() => setInternalContactOpen(false)}
+      />
+      <PrivacyModal
+        isOpen={internalPrivacyOpen}
+        onClose={() => setInternalPrivacyOpen(false)}
+      />
+      <TermsModal
+        isOpen={internalTermsOpen}
+        onClose={() => setInternalTermsOpen(false)}
       />
     </>
   );

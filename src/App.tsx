@@ -5,7 +5,9 @@ import { Footer } from './components/Footer';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 import { DeveloperModal } from './components/DeveloperModal';
-import { LegalContactModal, type LegalTab } from './components/LegalContactModal';
+import { ContactModal } from './components/ContactModal';
+import { PrivacyModal } from './components/PrivacyModal';
+import { TermsModal } from './components/TermsModal';
 import { Home } from './pages/Home';
 import { Share } from './pages/Share';
 import { NotFound } from './pages/NotFound';
@@ -14,6 +16,7 @@ import {
   runSupabaseAutoPurge,
   checkSupabaseHealth,
 } from './lib/storage-service';
+import { pingAllSupabaseNodes } from './lib/supabase-pool';
 import type { SupabaseHealth } from './lib/storage-service';
 
 export function App() {
@@ -22,17 +25,11 @@ export function App() {
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
 
-  // Initial legal tab based on current URL path
-  const getInitialLegalTab = (path: string): LegalTab | null => {
-    if (path === '/privacy') return 'privacy';
-    if (path === '/terms') return 'terms';
-    if (path === '/contact') return 'contact';
-    return null;
-  };
+  // Dedicated, separate modals for each page / section (no mixed tabs)
+  const [isContactOpen, setIsContactOpen] = useState(() => window.location.pathname === '/contact');
+  const [isPrivacyOpen, setIsPrivacyOpen] = useState(() => window.location.pathname === '/privacy');
+  const [isTermsOpen, setIsTermsOpen] = useState(() => window.location.pathname === '/terms');
 
-  const [legalModalTab, setLegalModalTab] = useState<LegalTab | null>(() =>
-    getInitialLegalTab(window.location.pathname)
-  );
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseHealth | null>(null);
   const [dismissBanner, setDismissBanner] = useState(false);
 
@@ -40,10 +37,9 @@ export function App() {
     const handlePopState = () => {
       const path = window.location.pathname;
       setCurrentPath(path);
-      const matchedLegalTab = getInitialLegalTab(path);
-      if (matchedLegalTab) {
-        setLegalModalTab(matchedLegalTab);
-      }
+      setIsContactOpen(path === '/contact');
+      setIsPrivacyOpen(path === '/privacy');
+      setIsTermsOpen(path === '/terms');
     };
 
     window.addEventListener('popstate', handlePopState);
@@ -57,14 +53,18 @@ export function App() {
     });
   }, []);
 
-  // Periodic cleanup check: purges expired files from local storage & Supabase every 60 seconds
+  // Periodic cleanup check & Anti-Pause Keep-Alive Ping:
+  // 1. Purges expired files from local storage & Supabase
+  // 2. Pings ALL configured Supabase nodes to register active traffic and prevent 7-day auto-pause!
   useEffect(() => {
     runLocalCleanup();
     runSupabaseAutoPurge();
+    pingAllSupabaseNodes();
 
     const interval = setInterval(() => {
       runLocalCleanup();
       runSupabaseAutoPurge();
+      pingAllSupabaseNodes();
     }, 60000);
 
     return () => clearInterval(interval);
@@ -84,15 +84,44 @@ export function App() {
     navigateTo('/');
   };
 
-  const handleOpenLegalModal = (tab: LegalTab) => {
-    setLegalModalTab(tab);
-    window.history.pushState({}, '', `/${tab}`);
-    setCurrentPath(`/${tab}`);
+  // Separate Modal Open Handlers (Zero Mixed Tabs)
+  const handleOpenContact = () => {
+    setIsContactOpen(true);
+    window.history.pushState({}, '', '/contact');
+    setCurrentPath('/contact');
   };
 
-  const handleCloseLegalModal = () => {
-    setLegalModalTab(null);
-    if (['/privacy', '/terms', '/contact'].includes(window.location.pathname)) {
+  const handleCloseContact = () => {
+    setIsContactOpen(false);
+    if (window.location.pathname === '/contact') {
+      window.history.pushState({}, '', '/');
+      setCurrentPath('/');
+    }
+  };
+
+  const handleOpenPrivacy = () => {
+    setIsPrivacyOpen(true);
+    window.history.pushState({}, '', '/privacy');
+    setCurrentPath('/privacy');
+  };
+
+  const handleClosePrivacy = () => {
+    setIsPrivacyOpen(false);
+    if (window.location.pathname === '/privacy') {
+      window.history.pushState({}, '', '/');
+      setCurrentPath('/');
+    }
+  };
+
+  const handleOpenTerms = () => {
+    setIsTermsOpen(true);
+    window.history.pushState({}, '', '/terms');
+    setCurrentPath('/terms');
+  };
+
+  const handleCloseTerms = () => {
+    setIsTermsOpen(false);
+    if (window.location.pathname === '/terms') {
       window.history.pushState({}, '', '/');
       setCurrentPath('/');
     }
@@ -167,7 +196,7 @@ export function App() {
       {/* Brand Header with Developer Profile & Contact */}
       <Header
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
-        onOpenContact={() => handleOpenLegalModal('contact')}
+        onOpenContact={handleOpenContact}
         onGoHome={handleGoHome}
       />
 
@@ -179,16 +208,16 @@ export function App() {
       <Footer
         onOpenHowItWorks={() => setIsHowItWorksOpen(true)}
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
-        onOpenPrivacy={() => handleOpenLegalModal('privacy')}
-        onOpenTerms={() => handleOpenLegalModal('terms')}
-        onOpenContact={() => handleOpenLegalModal('contact')}
+        onOpenPrivacy={handleOpenPrivacy}
+        onOpenTerms={handleOpenTerms}
+        onOpenContact={handleOpenContact}
       />
 
       {/* Developer Profile Modal (shivagopi) */}
       <DeveloperModal
         isOpen={isDeveloperOpen}
         onClose={() => setIsDeveloperOpen(false)}
-        onOpenContact={() => handleOpenLegalModal('contact')}
+        onOpenContact={handleOpenContact}
       />
 
       {/* How It Works Modal */}
@@ -197,11 +226,20 @@ export function App() {
         onClose={() => setIsHowItWorksOpen(false)}
       />
 
-      {/* Detailed Legal & Contact Modal (Privacy, Terms, Detailed Contact) */}
-      <LegalContactModal
-        isOpen={legalModalTab !== null}
-        initialTab={legalModalTab || 'contact'}
-        onClose={handleCloseLegalModal}
+      {/* Dedicated Separate Popups (Zero Mixed Tabs) */}
+      <ContactModal
+        isOpen={isContactOpen}
+        onClose={handleCloseContact}
+      />
+
+      <PrivacyModal
+        isOpen={isPrivacyOpen}
+        onClose={handleClosePrivacy}
+      />
+
+      <TermsModal
+        isOpen={isTermsOpen}
+        onClose={handleCloseTerms}
       />
 
       {/* Supabase Setup Modal */}
