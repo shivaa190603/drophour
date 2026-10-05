@@ -273,7 +273,8 @@ export async function uploadAndCreateShare(
         if (onProgress) onProgress(75);
 
         // Record file share metadata in the node's database
-        const { error: dbError } = await targetClient.from('file_shares').insert({
+        // Only insert standard schema columns that exist in the PostgreSQL table
+        const insertPayload: Record<string, unknown> = {
           share_token: shareToken,
           share_code: shareCode,
           delete_token: deleteToken,
@@ -285,11 +286,19 @@ export async function uploadAndCreateShare(
           expires_at: expiresAt,
           status: 'active',
           download_count: 0,
-          database_instance_id: targetNode.id,
-          payment_status: pricing.isPaid ? 'paid' : 'free',
-          amount_paid_inr: paymentDetails?.amountPaidInr || (pricing.isPaid ? pricing.priceInr : 0),
-          payment_id: paymentDetails?.paymentId || null,
-        });
+        };
+
+        let { error: dbError } = await targetClient.from('file_shares').insert(insertPayload);
+
+        // If insert failed due to strict legacy RLS policy (expires_at <= 1 hour 5 minutes),
+        // fallback to standard 1 hour expiration so database write succeeds without failing over to local demo
+        if (dbError && dbError.code === '42501' && isPaidTransfer) {
+          console.warn('[DropHour] 2-hour RLS constraint detected on node, falling back to 1-hour database entry:', dbError);
+          const safeExpiresAt = new Date(now.getTime() + 60 * 60 * 1000).toISOString();
+          insertPayload.expires_at = safeExpiresAt;
+          const retryRes = await targetClient.from('file_shares').insert(insertPayload);
+          dbError = retryRes.error;
+        }
 
         if (dbError) {
           console.warn(`[DropHour] DB insert failed on node ${targetNode.id}:`, dbError);
@@ -313,7 +322,7 @@ export async function uploadAndCreateShare(
           share_token: shareToken,
           share_code: shareCode,
           delete_token: deleteToken,
-          expires_at: expiresAt,
+          expires_at: (insertPayload.expires_at as string) || expiresAt,
           file_size: file.size,
           original_filename: cleanFilename,
           database_instance_id: targetNode.id,
@@ -374,15 +383,31 @@ export async function getShareByTokenOrCode(
 
     try {
       // SECURITY: Never select delete_token in public lookups
-      const { data, error } = await client
+      // Only select columns that exist in the PostgreSQL table schema
+      const query = client
         .from('file_shares')
         .select(
-          'id, share_token, share_code, original_filename, storage_path, file_size, mime_type, created_at, expires_at, status, download_count, database_instance_id'
-        )
-        .or(
-          `share_token.ilike.${identifier},share_code.ilike.${identifier},share_code.ilike.${normalizedCode}`
-        )
-        .maybeSingle();
+          'id, share_token, share_code, original_filename, storage_path, file_size, mime_type, created_at, expires_at, status, download_count'
+        );
+
+      let data = null;
+      let error = null;
+
+      if (identifier.length >= 20) {
+        // High-entropy 24-character token lookup: exact match is fast and indexed
+        const res = await query.eq('share_token', identifier).maybeSingle();
+        data = res.data;
+        error = res.error;
+      } else {
+        // Short code lookup (case-insensitive) or fallback
+        const res = await query
+          .or(
+            `share_code.ilike.${identifier},share_code.ilike.${normalizedCode},share_token.eq.${identifier}`
+          )
+          .maybeSingle();
+        data = res.data;
+        error = res.error;
+      }
 
       if (!error && data) {
         const isExpired =
@@ -413,7 +438,7 @@ export async function getShareByTokenOrCode(
             expires_at: data.expires_at,
             status: data.status,
             download_count: data.download_count || 0,
-            database_instance_id: data.database_instance_id || node.id,
+            database_instance_id: node.id,
           },
           expired: false,
           notFound: false,
@@ -486,13 +511,26 @@ export async function downloadFile(
     if (!client) continue;
 
     try {
-      const { data: record, error: fetchError } = await client
+      const query = client
         .from('file_shares')
-        .select('id, original_filename, storage_path, expires_at, status, download_count')
-        .or(
-          `share_token.ilike.${shareToken},share_code.ilike.${shareToken},share_code.ilike.${normalizedCode}`
-        )
-        .maybeSingle();
+        .select('id, original_filename, storage_path, expires_at, status, download_count');
+
+      let record = null;
+      let fetchError = null;
+
+      if (shareToken.length >= 20) {
+        const res = await query.eq('share_token', shareToken).maybeSingle();
+        record = res.data;
+        fetchError = res.error;
+      } else {
+        const res = await query
+          .or(
+            `share_code.ilike.${shareToken},share_code.ilike.${normalizedCode},share_token.eq.${shareToken}`
+          )
+          .maybeSingle();
+        record = res.data;
+        fetchError = res.error;
+      }
 
       if (!fetchError && record) {
         if (new Date(record.expires_at).getTime() <= Date.now() || record.status !== 'active') {
