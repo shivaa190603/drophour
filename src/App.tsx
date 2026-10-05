@@ -63,7 +63,8 @@ export function App() {
     }
 
     if (currentPath.startsWith('/s/')) {
-      const rawToken = currentPath.slice(3).replace(/\/+$/, '').trim();
+      const cleanPath = currentPath.slice(3).split('?')[0].split('#')[0].replace(/\/+$/, '').trim();
+      const rawToken = decodeURIComponent(cleanPath);
       if (!rawToken) {
         return <NotFound onGoHome={handleGoHome} />;
       }

@@ -268,7 +268,7 @@ export async function getShareByTokenOrCode(
       const { data, error } = await supabase
         .from('file_shares')
         .select('*')
-        .or(`share_token.eq.${identifier},share_code.eq.${identifier},share_code.eq.${normalizedCode}`)
+        .or(`share_token.ilike.${identifier},share_code.ilike.${identifier},share_code.ilike.${normalizedCode}`)
         .maybeSingle();
 
       if (!error && data) {
@@ -300,11 +300,13 @@ export async function getShareByTokenOrCode(
 
   // Local / Demo mode check
   const shares = getLocalShares();
+  const lowerId = identifier.toLowerCase();
+  const lowerNorm = normalizedCode.toLowerCase();
   const record = shares.find(
     (s) =>
-      s.share_token === identifier ||
-      s.share_code === identifier ||
-      normalizeShareCode(s.share_code) === normalizedCode
+      s.share_token.toLowerCase() === lowerId ||
+      s.share_code.toLowerCase() === lowerId ||
+      normalizeShareCode(s.share_code).toLowerCase() === lowerNorm
   );
 
   if (!record) {
@@ -348,7 +350,7 @@ export async function downloadFile(
       const { data: record, error: fetchError } = await supabase
         .from('file_shares')
         .select('original_filename, storage_path, expires_at, status, download_count')
-        .or(`share_token.eq.${shareToken},share_code.eq.${shareToken},share_code.eq.${normalizedCode}`)
+        .or(`share_token.ilike.${shareToken},share_code.ilike.${shareToken},share_code.ilike.${normalizedCode}`)
         .maybeSingle();
 
       if (!fetchError && record) {
