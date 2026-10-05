@@ -216,7 +216,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded p-2.5 text-xs text-[#171717] font-mono">
-              UPI ID: <span className="font-semibold">shivagopi@okaxis</span>
+              UPI ID: <span className="font-semibold">{import.meta.env.VITE_UPI_ID || 'shivagopi@okaxis'}</span>
             </div>
 
             <div className="space-y-2 pt-1 text-left">

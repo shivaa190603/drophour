@@ -352,6 +352,11 @@ export async function getShareByTokenOrCode(
   const identifier = rawIdentifier.replace(/\/+$/, '').trim();
   const normalizedCode = normalizeShareCode(identifier);
 
+  // Security check: strictly validate identifier format to prevent injection attacks
+  if (!identifier || !/^[A-Za-z0-9_-]{4,64}$/.test(identifier)) {
+    return { share: null, expired: false, notFound: true };
+  }
+
   // Search across configured Supabase nodes
   const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
 
@@ -360,9 +365,12 @@ export async function getShareByTokenOrCode(
     if (!client) continue;
 
     try {
+      // SECURITY: Never select delete_token in public lookups
       const { data, error } = await client
         .from('file_shares')
-        .select('*')
+        .select(
+          'id, share_token, share_code, original_filename, storage_path, file_size, mime_type, created_at, expires_at, status, download_count, database_instance_id'
+        )
         .or(
           `share_token.ilike.${identifier},share_code.ilike.${identifier},share_code.ilike.${normalizedCode}`
         )
@@ -456,6 +464,11 @@ export async function downloadFile(
 ): Promise<{ url: string; filename: string; isDirectBlob?: boolean }> {
   const shareToken = rawShareToken.replace(/\/+$/, '').trim();
   const normalizedCode = normalizeShareCode(shareToken);
+
+  // Security check: strictly validate identifier format to prevent injection attacks
+  if (!shareToken || !/^[A-Za-z0-9_-]{4,64}$/.test(shareToken)) {
+    throw new Error('Invalid or malformed share identifier.');
+  }
 
   // Search across Supabase nodes
   const nodes = getPoolConfigs().filter((n) => n.isConfigured && n.url && n.anonKey);
@@ -558,6 +571,12 @@ export async function deleteShareImmediately(
   deleteToken: string,
   shareToken?: string
 ): Promise<{ success: boolean; error?: string }> {
+  // Security check: validate delete_token format
+  const cleanDeleteToken = (deleteToken || '').trim();
+  if (!cleanDeleteToken || !/^[A-Za-z0-9_-]{16,64}$/.test(cleanDeleteToken)) {
+    return { success: false, error: 'Invalid or missing delete token.' };
+  }
+
   let deletedFromSupabase = false;
 
   // Search across all Supabase nodes
@@ -568,10 +587,23 @@ export async function deleteShareImmediately(
     if (!client) continue;
 
     try {
+      // 1. Attempt atomic secure server-side RPC deletion
+      try {
+        const { data: rpcSuccess } = await client.rpc('delete_share_securely', {
+          p_delete_token: cleanDeleteToken,
+        });
+        if (rpcSuccess) {
+          deletedFromSupabase = true;
+          break;
+        }
+      } catch {
+        // Fall back to direct table lookup
+      }
+
       const { data: record } = await client
         .from('file_shares')
         .select('id, storage_path')
-        .eq('delete_token', deleteToken)
+        .eq('delete_token', cleanDeleteToken)
         .maybeSingle();
 
       if (record) {

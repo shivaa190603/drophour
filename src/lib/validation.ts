@@ -63,7 +63,13 @@ export function generateSecureToken(length = 24): string {
  * Sanitizes a filename to avoid path traversal or special characters
  */
 export function sanitizeFilename(filename: string): string {
-  return filename.replace(/[/\\?%*:|"<>]/g, '_').trim();
+  if (!filename) return 'unnamed_file';
+  return filename
+    .replace(/\0/g, '')
+    .replace(/(\.\.[/\\])/g, '')
+    .replace(/[/\\?%*:|"<>]/g, '_')
+    .slice(0, 150)
+    .trim();
 }
 
 /**

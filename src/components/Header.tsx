@@ -1,15 +1,13 @@
 import React from 'react';
-import { Clock, User, Server } from 'lucide-react';
+import { Clock, User } from 'lucide-react';
 
 interface HeaderProps {
   onOpenDeveloper: () => void;
-  onOpenDatabasePool: () => void;
   onGoHome: () => void;
 }
 
 export const Header: React.FC<HeaderProps> = ({
   onOpenDeveloper,
-  onOpenDatabasePool,
   onGoHome,
 }) => {
   return (
@@ -37,16 +35,6 @@ export const Header: React.FC<HeaderProps> = ({
           >
             <User className="w-3.5 h-3.5 sm:w-4 sm:h-4 text-[#2563EB]" />
             <span>Developer: <span className="font-bold">shivagopi</span></span>
-          </button>
-
-          {/* Database pool load balancer manager */}
-          <button
-            onClick={onOpenDatabasePool}
-            className="flex items-center gap-1 text-xs font-medium text-[#666666] hover:text-[#171717] px-2.5 py-1.5 rounded border border-transparent hover:border-[#D9D9D9] transition-colors"
-            title="Configure 5 Supabase Database Nodes"
-          >
-            <Server className="w-3.5 h-3.5 text-[#666666]" />
-            <span className="hidden sm:inline">5-Node Pool</span>
           </button>
         </nav>
       </div>

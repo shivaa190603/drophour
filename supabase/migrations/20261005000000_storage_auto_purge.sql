@@ -40,16 +40,52 @@ BEGIN
 END;
 $$;
 
--- Grant execution to anon, authenticated, and service_role
 GRANT EXECUTE ON FUNCTION public.cleanup_expired_file_shares() TO anon, authenticated, service_role;
 
--- 3. If pg_cron is enabled, run every minute
+-- 3. Secure Deletion Function: Guarantees user can only delete if providing valid delete_token
+CREATE OR REPLACE FUNCTION public.delete_share_securely(p_delete_token text)
+RETURNS boolean
+LANGUAGE plpgsql
+SECURITY DEFINER
+AS $$
+DECLARE
+    target_storage_path text;
+    target_id uuid;
+BEGIN
+    IF p_delete_token IS NULL OR length(trim(p_delete_token)) < 16 THEN
+        RETURN false;
+    END IF;
+
+    SELECT id, storage_path INTO target_id, target_storage_path
+    FROM public.file_shares
+    WHERE delete_token = trim(p_delete_token)
+    LIMIT 1;
+
+    IF target_id IS NULL THEN
+        RETURN false;
+    END IF;
+
+    -- 1. Physically remove binary file from private storage bucket
+    DELETE FROM storage.objects
+    WHERE bucket_id = 'temporary-files'
+      AND name = target_storage_path;
+
+    -- 2. Mark database record as deleted
+    UPDATE public.file_shares
+    SET status = 'deleted'
+    WHERE id = target_id;
+
+    RETURN true;
+END;
+$$;
+
+GRANT EXECUTE ON FUNCTION public.delete_share_securely(text) TO anon, authenticated, service_role;
+
+-- 4. If pg_cron is enabled, run auto-purge every minute
 DO $$
 BEGIN
     IF EXISTS (SELECT 1 FROM pg_extension WHERE extname = 'pg_cron') THEN
-        -- Unschedule old if exists
         PERFORM cron.unschedule('cleanup-expired-shares-every-minute');
-        -- Schedule new auto-purge
         PERFORM cron.schedule(
             'cleanup-expired-shares-every-minute',
             '* * * * *',

@@ -4,7 +4,6 @@ import {
   Mail,
   Check,
   Copy,
-  Server,
   X,
   ExternalLink,
 } from 'lucide-react';
@@ -12,13 +11,11 @@ import {
 interface DeveloperModalProps {
   isOpen: boolean;
   onClose: () => void;
-  onOpenDatabasePool?: () => void;
 }
 
 export const DeveloperModal: React.FC<DeveloperModalProps> = ({
   isOpen,
   onClose,
-  onOpenDatabasePool,
 }) => {
   const [copied, setCopied] = useState(false);
   const email = 'shivagopi@gmail.com';
@@ -144,23 +141,6 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
             ))}
           </div>
         </div>
-
-        {/* Database Pool Shortcut */}
-        {onOpenDatabasePool && (
-          <div className="pt-2 border-t border-[#D9D9D9]">
-            <button
-              type="button"
-              onClick={() => {
-                onClose();
-                onOpenDatabasePool();
-              }}
-              className="w-full py-2 px-3 bg-[#F7F7F5] hover:bg-[#EAEAEA] border border-[#D9D9D9] rounded text-xs font-medium text-[#171717] flex items-center justify-center gap-2 transition-colors"
-            >
-              <Server className="w-4 h-4 text-[#2563EB]" />
-              <span>Configure 5 Supabase Database Nodes (Load Balancer)</span>
-            </button>
-          </div>
-        )}
 
         <div className="flex justify-end pt-2">
           <button

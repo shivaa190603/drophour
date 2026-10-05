@@ -5,7 +5,6 @@ import { Footer } from './components/Footer';
 import { HowItWorksModal } from './components/HowItWorksModal';
 import { SupabaseSetupModal } from './components/SupabaseSetupModal';
 import { DeveloperModal } from './components/DeveloperModal';
-import { DatabasePoolModal } from './components/DatabasePoolModal';
 import { Home } from './pages/Home';
 import { Share } from './pages/Share';
 import { NotFound } from './pages/NotFound';
@@ -20,7 +19,6 @@ export function App() {
   const [currentPath, setCurrentPath] = useState<string>(window.location.pathname);
   const [isHowItWorksOpen, setIsHowItWorksOpen] = useState(false);
   const [isDeveloperOpen, setIsDeveloperOpen] = useState(false);
-  const [isDatabasePoolOpen, setIsDatabasePoolOpen] = useState(false);
   const [isSetupModalOpen, setIsSetupModalOpen] = useState(false);
   const [supabaseStatus, setSupabaseStatus] = useState<SupabaseHealth | null>(null);
   const [dismissBanner, setDismissBanner] = useState(false);
@@ -130,10 +128,9 @@ export function App() {
         </div>
       )}
 
-      {/* Brand Header with Developer Profile & 5-Node Pool Manager */}
+      {/* Brand Header with Developer Profile */}
       <Header
         onOpenDeveloper={() => setIsDeveloperOpen(true)}
-        onOpenDatabasePool={() => setIsDatabasePoolOpen(true)}
         onGoHome={handleGoHome}
       />
 
@@ -151,13 +148,6 @@ export function App() {
       <DeveloperModal
         isOpen={isDeveloperOpen}
         onClose={() => setIsDeveloperOpen(false)}
-        onOpenDatabasePool={() => setIsDatabasePoolOpen(true)}
-      />
-
-      {/* 5-Node Supabase Pool & Load Balancer Manager */}
-      <DatabasePoolModal
-        isOpen={isDatabasePoolOpen}
-        onClose={() => setIsDatabasePoolOpen(false)}
       />
 
       {/* How It Works Modal */}
@@ -166,7 +156,7 @@ export function App() {
         onClose={() => setIsHowItWorksOpen(false)}
       />
 
-      {/* Supabase Single-Node Setup Modal */}
+      {/* Supabase Setup Modal */}
       <SupabaseSetupModal
         isOpen={isSetupModalOpen}
         onClose={() => {
