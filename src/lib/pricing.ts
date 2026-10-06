@@ -78,11 +78,15 @@ export function getFilePricingTier(sizeBytes: number): PricingTierInfo {
  * Generates a valid UPI payment deep link string
  * Compatible with Google Pay, PhonePe, Paytm, BHIM, etc.
  */
-export function generateUpiPaymentUri(amountInr: number, filename: string): string {
+export function generateUpiPaymentUri(
+  amountInr: number,
+  filename: string,
+  orderRef?: string
+): string {
   const upiId = import.meta.env.VITE_UPI_ID || 'shivagopi@okaxis'; // Configured via env or default developer UPI
   const payeeName = 'DropHour by Shivagopi';
   const cleanName = filename.slice(0, 20).replace(/[^a-zA-Z0-9_-]/g, '_');
-  const note = `DropHour ${amountInr}rs for ${cleanName}`;
+  const note = orderRef ? `DropHour ${orderRef}` : `DropHour ${amountInr}rs for ${cleanName}`;
 
   return `upi://pay?pa=${encodeURIComponent(upiId)}&pn=${encodeURIComponent(
     payeeName
