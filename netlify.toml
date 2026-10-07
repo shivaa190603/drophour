@@ -12,6 +12,16 @@
   status = 200
 
 [[redirects]]
+  from = "/api/create-razorpay-order"
+  to = "/.netlify/functions/create-razorpay-order"
+  status = 200
+
+[[redirects]]
+  from = "/api/check-razorpay-status"
+  to = "/.netlify/functions/check-razorpay-status"
+  status = 200
+
+[[redirects]]
   from = "/*"
   to = "/index.html"
   status = 200

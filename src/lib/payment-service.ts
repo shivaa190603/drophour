@@ -15,6 +15,8 @@ export interface PaymentOrder {
   expiresAt: string;
   bankRefUtr?: string;
   verifiedAt?: string;
+  paymentUrl?: string;
+  paymentLinkId?: string;
 }
 
 export interface BankVerificationResult {
@@ -24,6 +26,59 @@ export interface BankVerificationResult {
   bankRefUtr?: string;
   verifiedAt?: string;
   message?: string;
+}
+
+/**
+ * Creates an official Razorpay payment link and dynamic QR code target
+ */
+export async function createRazorpayOrder(
+  amountInr: number,
+  tierName: string,
+  filename: string
+): Promise<PaymentOrder> {
+  const baseOrder = await createPaymentOrder(amountInr, tierName);
+
+  try {
+    const res = await fetch('/api/create-razorpay-order', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        amountInr,
+        orderCode: baseOrder.orderCode,
+        filename,
+      }),
+    });
+
+    if (res.ok) {
+      const data = await res.json();
+      if (data.paymentUrl) {
+        baseOrder.paymentUrl = data.paymentUrl;
+        baseOrder.paymentLinkId = data.paymentLinkId;
+      }
+    }
+  } catch (err) {
+    console.warn('[DropHour Razorpay] Link endpoint error, fallback to client checkout:', err);
+  }
+
+  return baseOrder;
+}
+
+/**
+ * Query Razorpay serverless status endpoint
+ */
+export async function checkRazorpayStatus(
+  paymentLinkId: string
+): Promise<{ isPaid: boolean; paymentId?: string }> {
+  try {
+    const res = await fetch(`/api/check-razorpay-status?id=${encodeURIComponent(paymentLinkId)}`);
+    if (res.ok) {
+      const data = await res.json();
+      return { isPaid: Boolean(data.isPaid), paymentId: data.paymentId };
+    }
+  } catch (err) {
+    console.warn('[DropHour Razorpay] Status poller error:', err);
+  }
+  return { isPaid: false };
 }
 
 /**
