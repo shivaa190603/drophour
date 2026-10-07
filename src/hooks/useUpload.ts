@@ -95,6 +95,34 @@ export function useUpload() {
       return;
     }
 
+    // Free tier rate limiting: Protect server from spam flooding (Max 5 free uploads per 10 mins)
+    if (!pricing.isPaid) {
+      const now = Date.now();
+      const windowMs = 10 * 60 * 1000; // 10 minutes
+      const maxFreeUploads = 5;
+
+      try {
+        const stored = localStorage.getItem('drophour_free_uploads');
+        const timestamps: number[] = stored ? JSON.parse(stored) : [];
+        const recent = timestamps.filter((t) => now - t < windowMs);
+
+        if (recent.length >= maxFreeUploads) {
+          const oldest = Math.min(...recent);
+          const waitMins = Math.max(1, Math.ceil((windowMs - (now - oldest)) / 60000));
+          setErrorMessage(
+            `Free upload limit reached (${maxFreeUploads} uploads per 10 mins). Please wait ${waitMins} minute(s) to protect server capacity.`
+          );
+          setStage('error');
+          return;
+        }
+
+        recent.push(now);
+        localStorage.setItem('drophour_free_uploads', JSON.stringify(recent));
+      } catch {
+        // Fallback if localStorage quota exceeded
+      }
+    }
+
     executeUpload();
   }, [file, pricing.isPaid, isPaymentConfirmed, executeUpload]);
 
