@@ -39,7 +39,8 @@ export const handler: Handler = async (event: HandlerEvent) => {
         accept_partial: false,
         description: `DropHour ${orderCode} - ${filename.slice(0, 30)}`,
         reference_id: `dh_${orderCode}_${Date.now()}`,
-        expire_by: Math.floor(Date.now() / 1000) + 15 * 60, // 15 mins expiry
+        expire_by: Math.floor(Date.now() / 1000) + 20 * 60, // 20 mins expiry (safe for Razorpay 15-min minimum)
+        upi_link: true,
       }),
     });
 

@@ -16,13 +16,20 @@ import {
   RotateCcw,
   ShieldAlert,
   ExternalLink,
+  Smartphone,
+  Copy,
 } from 'lucide-react';
 import { formatFileSize } from '../lib/formatters';
 import {
   createRazorpayOrder,
+  getOrCreateRazorpayOrder,
+  saveActivePaymentOrder,
+  clearActivePaymentOrder,
   checkRazorpayStatus,
   markOrderAsExpired,
   confirmRazorpayOrder,
+  verifyUtrAgainstStatement,
+  checkPaymentOrderStatus,
 } from '../lib/payment-service';
 import type { PaymentOrder } from '../lib/payment-service';
 import type { PricingTierInfo } from '../lib/pricing';
@@ -63,25 +70,20 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
   const [timeLeftSeconds, setTimeLeftSeconds] = useState(180); // Strict 3-minute window (180s)
   const [isOrderExpired, setIsOrderExpired] = useState(false);
   const [isPollingRazorpay, setIsPollingRazorpay] = useState(false);
+  const [paymentMode, setPaymentMode] = useState<'upi' | 'razorpay'>('upi');
 
   const [verifiedTx, setVerifiedTx] = useState<VerifiedTransaction | null>(null);
   const [errorMsg, setErrorMsg] = useState<string | null>(null);
   const [autoAdvanceCountdown, setAutoAdvanceCountdown] = useState(3);
+  const [isCopiedUpi, setIsCopiedUpi] = useState(false);
 
-  // Initialize a strict 3-minute Razorpay order
-  const initOrder = useCallback(async () => {
-    setIsOrderExpired(false);
-    setTimeLeftSeconds(180);
-    setErrorMsg(null);
-    setVerifiedTx(null);
+  // Manual UTR verification option
+  const [showUtrField, setShowUtrField] = useState(false);
+  const [manualUtr, setManualUtr] = useState('');
+  const [isVerifyingUtr, setIsVerifyingUtr] = useState(false);
+  const [utrSuccessMsg, setUtrSuccessMsg] = useState<string | null>(null);
 
-    const newOrder = await createRazorpayOrder(
-      pricing.priceInr,
-      pricing.tierName,
-      filename
-    );
-    setOrder(newOrder);
-  }, [pricing.priceInr, pricing.tierName, filename]);
+  const upiId = import.meta.env.VITE_UPI_ID || 'shivaxroy@ybl';
 
   // Load Razorpay Checkout SDK dynamically
   useEffect(() => {
@@ -94,15 +96,26 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   }, []);
 
-  // Initialize order when modal opens
+  // Strict 3-minute order persistence across modal close/open:
+  // Reuses the exact same active order and QR code if within 3 minutes
   useEffect(() => {
     let isCancelled = false;
     if (isOpen && !verifiedTx) {
-      createRazorpayOrder(pricing.priceInr, pricing.tierName, filename).then((newOrder) => {
+      getOrCreateRazorpayOrder(pricing.priceInr, pricing.tierName, filename).then((activeOrder) => {
         if (!isCancelled) {
-          setOrder(newOrder);
-          setTimeLeftSeconds(180);
-          setIsOrderExpired(false);
+          setOrder(activeOrder);
+          const remainingSec = Math.max(
+            0,
+            Math.floor((new Date(activeOrder.expiresAt).getTime() - Date.now()) / 1000)
+          );
+          setTimeLeftSeconds(remainingSec);
+          if (remainingSec <= 0) {
+            setIsOrderExpired(true);
+            markOrderAsExpired(activeOrder.orderCode);
+            clearActivePaymentOrder();
+          } else {
+            setIsOrderExpired(false);
+          }
           setErrorMsg(null);
         }
       });
@@ -112,26 +125,48 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     };
   }, [isOpen, pricing.priceInr, pricing.tierName, filename, verifiedTx]);
 
-  // Strict 3-minute countdown timer: locks user out if timer hits 00:00
+  // Restart 3-minute window when explicitly requested by user
+  const initOrder = useCallback(async () => {
+    clearActivePaymentOrder();
+    setIsOrderExpired(false);
+    setTimeLeftSeconds(180);
+    setErrorMsg(null);
+    setVerifiedTx(null);
+    setManualUtr('');
+    setUtrSuccessMsg(null);
+
+    const newOrder = await createRazorpayOrder(
+      pricing.priceInr,
+      pricing.tierName,
+      filename
+    );
+    saveActivePaymentOrder(newOrder, filename);
+    setOrder(newOrder);
+  }, [pricing.priceInr, pricing.tierName, filename]);
+
+  // Strict 3-minute countdown timer: calculates exact seconds relative to expiresAt
   useEffect(() => {
     if (!isOpen || !order || verifiedTx || isOrderExpired) return;
 
     const timer = setInterval(() => {
-      setTimeLeftSeconds((prev) => {
-        if (prev <= 1) {
-          clearInterval(timer);
-          setIsOrderExpired(true);
-          markOrderAsExpired(order.orderCode);
-          return 0;
-        }
-        return prev - 1;
-      });
+      const remainingSec = Math.max(
+        0,
+        Math.floor((new Date(order.expiresAt).getTime() - Date.now()) / 1000)
+      );
+      setTimeLeftSeconds(remainingSec);
+
+      if (remainingSec <= 0) {
+        clearInterval(timer);
+        setIsOrderExpired(true);
+        markOrderAsExpired(order.orderCode);
+        clearActivePaymentOrder();
+      }
     }, 1000);
 
     return () => clearInterval(timer);
   }, [isOpen, order, verifiedTx, isOrderExpired]);
 
-  // Real-time Razorpay Status Polling: detects payment completed via Razorpay QR scan
+  // Real-time Razorpay Status Polling (Auto-Detect payment completed via Razorpay link or checkout)
   useEffect(() => {
     if (!isOpen || !order?.paymentLinkId || verifiedTx || isOrderExpired) return;
 
@@ -144,10 +179,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
         clearInterval(pollInterval);
         const paymentId = res.paymentId || `pay_${Date.now()}`;
         await confirmRazorpayOrder(order.orderCode, paymentId);
+        clearActivePaymentOrder();
 
         const tx: VerifiedTransaction = {
           id: paymentId,
-          gateway: 'Razorpay Verified (Instant Settlement)',
+          gateway: 'Razorpay Verified Gateway',
           timestamp: new Date().toLocaleTimeString(),
           amount: pricing.priceInr,
           retentionHours: 2,
@@ -158,6 +194,29 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
 
     return () => clearInterval(pollInterval);
   }, [isOpen, order?.paymentLinkId, order?.orderCode, verifiedTx, isOrderExpired, pricing.priceInr]);
+
+  // Background Bank Statement Status Polling (To catch UPI payments matched in database)
+  useEffect(() => {
+    if (!isOpen || !order?.orderCode || verifiedTx || isOrderExpired) return;
+
+    const statusInterval = setInterval(async () => {
+      const statusRes = await checkPaymentOrderStatus(order.orderCode);
+      if (statusRes.isVerified) {
+        clearInterval(statusInterval);
+        clearActivePaymentOrder();
+        const tx: VerifiedTransaction = {
+          id: statusRes.bankRefUtr || `upi_${Date.now()}`,
+          gateway: 'UPI Bank Statement Verified',
+          timestamp: new Date().toLocaleTimeString(),
+          amount: pricing.priceInr,
+          retentionHours: 2,
+        };
+        setVerifiedTx(tx);
+      }
+    }, 3000);
+
+    return () => clearInterval(statusInterval);
+  }, [isOpen, order?.orderCode, verifiedTx, isOrderExpired, pricing.priceInr]);
 
   // When payment is verified, automatically advance to upload after countdown
   useEffect(() => {
@@ -193,7 +252,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     const razorpayKey = import.meta.env.VITE_RAZORPAY_KEY_ID || '';
 
     if (typeof window.Razorpay === 'undefined') {
-      setErrorMsg('Razorpay SDK is loading. Please scan the QR code above or wait a second.');
+      setErrorMsg('Razorpay SDK is loading. Please scan the QR code above or wait a moment.');
       return;
     }
 
@@ -217,6 +276,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
           }
 
           await confirmRazorpayOrder(order.orderCode, paymentId);
+          clearActivePaymentOrder();
 
           const tx: VerifiedTransaction = {
             id: paymentId,
@@ -249,10 +309,49 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
     }
   };
 
-  // The QR code URL points directly to the Razorpay Payment Link
-  const qrTargetUrl =
-    order?.paymentUrl ||
-    `https://rzp.io/l/drophour?amount=${pricing.priceInr}&ref=${order?.orderCode || ''}`;
+  // Handle manual 12-digit UTR submission for UPI transfers
+  const handleVerifyManualUtr = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!order || !manualUtr.trim()) return;
+
+    setIsVerifyingUtr(true);
+    setErrorMsg(null);
+
+    const cleanUtr = manualUtr.trim().replace(/\s+/g, '');
+    const res = await verifyUtrAgainstStatement(order.orderCode, cleanUtr, pricing.priceInr);
+    setIsVerifyingUtr(false);
+
+    if (res.success) {
+      setUtrSuccessMsg(res.message);
+      clearActivePaymentOrder();
+      const tx: VerifiedTransaction = {
+        id: cleanUtr,
+        gateway: 'UPI Statement Matched (Instant Settlement)',
+        timestamp: new Date().toLocaleTimeString(),
+        amount: pricing.priceInr,
+        retentionHours: 2,
+      };
+      setVerifiedTx(tx);
+    } else {
+      setErrorMsg(res.message);
+    }
+  };
+
+  const copyUpiId = () => {
+    navigator.clipboard.writeText(upiId);
+    setIsCopiedUpi(true);
+    setTimeout(() => setIsCopiedUpi(false), 2000);
+  };
+
+  // 1. Native Universal UPI Intent URI:
+  // Immediately parsed by PhonePe, Google Pay, Paytm, FamPay, BHIM, Cred, etc.
+  const universalUpiUri = `upi://pay?pa=${upiId}&pn=DropHour&am=${pricing.priceInr}&cu=INR&tn=${order?.orderCode || 'DH-ORDER'}`;
+
+  // 2. Razorpay Hosted Payment Link (or fallback to UPI QR)
+  const razorpayTargetUrl = order?.paymentUrl || universalUpiUri;
+
+  // Active QR code value based on user's selected mode
+  const activeQrValue = paymentMode === 'upi' ? universalUpiUri : razorpayTargetUrl;
 
   return (
     <div
@@ -262,10 +361,10 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
       onClick={verifiedTx ? undefined : onClose}
     >
       <div
-        className="w-full max-w-md bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg p-6 shadow-md space-y-5 max-h-[95vh] overflow-y-auto"
+        className="w-full max-w-md bg-[#FFFFFF] border border-[#D9D9D9] rounded-lg p-6 shadow-md space-y-4 max-h-[95vh] overflow-y-auto"
         onClick={(e) => e.stopPropagation()}
       >
-        {/* State A: Verified Receipt View (Payment Verified by Razorpay) */}
+        {/* State A: Verified Receipt View (Payment Confirmed) */}
         {verifiedTx ? (
           <div className="py-2 space-y-4 text-center">
             {/* Success Animation Badge */}
@@ -276,12 +375,11 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             <div className="space-y-1">
               <span className="text-xs font-bold text-[#16A34A] uppercase tracking-wider flex items-center justify-center gap-1">
                 <CheckCircle2 className="w-4 h-4 text-[#16A34A]" />
-                Payment Verified by Razorpay!
+                Payment Confirmed &amp; Verified!
               </span>
               <h2 className="text-3xl font-extrabold text-[#171717]">
                 ₹{verifiedTx.amount}.00
               </h2>
-              {/* Highlight 2-hour retention */}
               <div className="inline-flex items-center gap-1.5 px-3 py-1 bg-[#EFF6FF] border border-[#BFDBFE] text-[#1E40AF] rounded-full text-xs font-semibold">
                 <Clock className="w-3.5 h-3.5 text-[#2563EB]" />
                 <span>Extended 2-Hour Retention Activated</span>
@@ -293,7 +391,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               <div className="flex items-center justify-between pb-2 border-b border-[#D9D9D9]">
                 <div className="flex items-center gap-1.5 font-medium text-[#171717]">
                   <Receipt className="w-3.5 h-3.5 text-[#2563EB]" />
-                  <span>Official Razorpay Receipt</span>
+                  <span>Verified Payment Receipt</span>
                 </div>
                 <span className="text-[10px] text-[#16A34A] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#BBF7D0]">
                   SETTLED IN BANK ✓
@@ -301,7 +399,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
 
               <div className="flex justify-between text-[#666666]">
-                <span>Razorpay Payment ID:</span>
+                <span>Transaction / Payment ID:</span>
                 <span
                   className="font-mono text-[#171717] font-semibold truncate max-w-[200px]"
                   title={verifiedTx.id}
@@ -398,7 +496,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
           </div>
         ) : (
-          /* State C: Active Razorpay QR & Checkout View */
+          /* State C: Active QR & Checkout View (Persistent across modal close/open for 3 mins) */
           <>
             {/* Header */}
             <div className="flex items-center justify-between border-b border-[#D9D9D9] pb-3">
@@ -426,7 +524,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
             </div>
 
             {/* File & Price Summary Card */}
-            <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-3.5 flex items-center justify-between">
+            <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-3 flex items-center justify-between">
               <div className="min-w-0 pr-3">
                 <p className="text-xs font-semibold text-[#171717] truncate" title={filename}>
                   {filename}
@@ -446,6 +544,34 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             </div>
 
+            {/* Payment Method Switcher Tabs */}
+            <div className="grid grid-cols-2 gap-2 bg-[#F7F7F5] p-1 rounded-lg border border-[#D9D9D9] text-xs">
+              <button
+                type="button"
+                onClick={() => setPaymentMode('upi')}
+                className={`py-1.5 px-2 rounded font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  paymentMode === 'upi'
+                    ? 'bg-[#FFFFFF] text-[#171717] shadow-sm font-semibold'
+                    : 'text-[#666666] hover:text-[#171717]'
+                }`}
+              >
+                <Smartphone className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>UPI Scan &amp; Pay</span>
+              </button>
+              <button
+                type="button"
+                onClick={() => setPaymentMode('razorpay')}
+                className={`py-1.5 px-2 rounded font-medium flex items-center justify-center gap-1.5 transition-colors ${
+                  paymentMode === 'razorpay'
+                    ? 'bg-[#FFFFFF] text-[#171717] shadow-sm font-semibold'
+                    : 'text-[#666666] hover:text-[#171717]'
+                }`}
+              >
+                <CreditCard className="w-3.5 h-3.5 text-[#2563EB]" />
+                <span>Razorpay Checkout</span>
+              </button>
+            </div>
+
             {errorMsg && (
               <div className="bg-[#FEF2F2] border border-[#FCA5A5] text-[#991B1B] text-xs p-2.5 rounded flex items-start gap-2">
                 <AlertCircle className="w-4 h-4 shrink-0 mt-0.5" />
@@ -453,9 +579,16 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               </div>
             )}
 
-            {/* Official Razorpay QR Section */}
-            <div className="space-y-3.5 text-center">
-              {/* Live Countdown & Razorpay Secure Badge */}
+            {utrSuccessMsg && (
+              <div className="bg-[#DCFCE7] border border-[#BBF7D0] text-[#16A34A] text-xs p-2.5 rounded flex items-start gap-2">
+                <CheckCircle2 className="w-4 h-4 shrink-0 mt-0.5" />
+                <span>{utrSuccessMsg}</span>
+              </div>
+            )}
+
+            {/* QR Section */}
+            <div className="space-y-3 text-center">
+              {/* Strict 3-Minute Live Countdown Badge */}
               <div
                 className={`inline-flex items-center gap-2 px-3 py-1 rounded-full text-xs font-semibold ${
                   timeLeftSeconds <= 30
@@ -465,14 +598,14 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
               >
                 <Clock className="w-3.5 h-3.5" />
                 <span>
-                  Window Closes In: {formatTime(timeLeftSeconds)} · Razorpay Live Gateway
+                  Order ID &amp; QR Locked: {formatTime(timeLeftSeconds)} remaining
                 </span>
               </div>
 
-              {/* Dynamic Razorpay QR Code Container */}
+              {/* Dynamic QR Code Container */}
               <div className="bg-[#FFFFFF] border-2 border-[#171717] rounded-xl p-3 inline-block mx-auto shadow-md relative">
                 <QRCodeSVG
-                  value={qrTargetUrl}
+                  value={activeQrValue}
                   size={175}
                   level="M"
                   marginSize={2}
@@ -481,25 +614,65 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 />
                 <div className="mt-1 pt-1 border-t border-[#E5E5E5] flex items-center justify-center gap-1 text-[10px] font-semibold text-[#2563EB]">
                   <ShieldCheck className="w-3 h-3 text-[#2563EB]" />
-                  <span>Razorpay Verified QR</span>
+                  <span>
+                    {paymentMode === 'upi' ? 'Direct UPI Intent QR' : 'Razorpay Hosted QR'}
+                  </span>
                 </div>
               </div>
 
-              <div className="space-y-0.5">
-                <p className="text-xs font-semibold text-[#171717]">
-                  Scan with Camera, Google Pay, PhonePe, or Paytm
-                </p>
-                <p className="text-[11px] text-[#666666]">
-                  UPI · Credit Cards · Debit Cards · Net Banking
-                </p>
-              </div>
+              {/* Accepted Apps Badges */}
+              {paymentMode === 'upi' ? (
+                <div className="space-y-1.5">
+                  <p className="text-xs font-semibold text-[#171717]">
+                    Scan with PhonePe, Google Pay, Paytm, or FamPay
+                  </p>
+                  <div className="flex flex-wrap items-center justify-center gap-1 text-[10px] text-[#444444]">
+                    <span className="bg-[#F0FDF4] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">Google Pay</span>
+                    <span className="bg-[#F0FDF4] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">PhonePe</span>
+                    <span className="bg-[#F0FDF4] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">Paytm</span>
+                    <span className="bg-[#F0FDF4] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">FamPay</span>
+                    <span className="bg-[#F0FDF4] border border-[#BBF7D0] px-2 py-0.5 rounded font-medium">BHIM</span>
+                  </div>
+                  <div className="pt-1 flex items-center justify-center gap-2 text-[11px] text-[#666666]">
+                    <span>UPI ID: <strong className="font-mono text-[#171717]">{upiId}</strong></span>
+                    <button
+                      type="button"
+                      onClick={copyUpiId}
+                      className="text-[#2563EB] hover:underline flex items-center gap-0.5 text-[10px]"
+                    >
+                      <Copy className="w-3 h-3" />
+                      <span>{isCopiedUpi ? 'Copied!' : 'Copy'}</span>
+                    </button>
+                  </div>
+                </div>
+              ) : (
+                <div className="space-y-1">
+                  <p className="text-xs font-semibold text-[#171717]">
+                    Razorpay Gateway (Cards, UPI, Net Banking)
+                  </p>
+                  <p className="text-[11px] text-[#666666]">
+                    Visa · Mastercard · RuPay · Net Banking · Wallets
+                  </p>
+                  {order?.paymentUrl && (
+                    <a
+                      href={order.paymentUrl}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1 text-[11px] text-[#2563EB] hover:underline font-medium"
+                    >
+                      <span>Open Razorpay payment link in new tab</span>
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  )}
+                </div>
+              )}
 
               {/* Real-Time Live Status Bar */}
-              <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-3 text-left space-y-2">
+              <div className="bg-[#F7F7F5] border border-[#D9D9D9] rounded-lg p-2.5 text-left space-y-1.5">
                 <div className="flex items-center justify-between text-xs">
                   <span className="flex items-center gap-1.5 font-semibold text-[#171717]">
                     <Sparkles className="w-3.5 h-3.5 text-[#2563EB]" />
-                    <span>Real-Time Razorpay Auto-Verify</span>
+                    <span>Real-Time Payment Detection</span>
                   </span>
                   <span className="text-[10px] text-[#16A34A] font-bold bg-[#DCFCE7] px-2 py-0.5 rounded border border-[#BBF7D0]">
                     AUTO-DETECT ON ✓
@@ -510,7 +683,7 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                   <Loader2 className="w-3.5 h-3.5 animate-spin text-[#2563EB] shrink-0" />
                   <span>
                     {isPollingRazorpay
-                      ? 'Checking payment status with Razorpay servers...'
+                      ? 'Checking payment status with banking servers...'
                       : 'Waiting for payment... Advances automatically once paid!'}
                   </span>
                 </div>
@@ -538,23 +711,59 @@ export const PaymentModal: React.FC<PaymentModalProps> = ({
                 <span>Pay ₹{pricing.priceInr} with Razorpay (Checkout on this device)</span>
               </button>
 
-              {/* Direct Link button */}
-              {order?.paymentUrl && (
-                <a
-                  href={order.paymentUrl}
-                  target="_blank"
-                  rel="noopener noreferrer"
-                  className="inline-flex items-center gap-1 text-[11px] text-[#2563EB] hover:underline font-medium"
-                >
-                  <span>Or open payment link in new tab</span>
-                  <ExternalLink className="w-3 h-3" />
-                </a>
-              )}
+              {/* Manual UTR input option for UPI scans */}
+              <div className="pt-1">
+                {!showUtrField ? (
+                  <button
+                    type="button"
+                    onClick={() => setShowUtrField(true)}
+                    className="text-[11px] text-[#666666] hover:text-[#171717] underline transition-colors"
+                  >
+                    Paid via UPI app? Click here to enter 12-digit UTR reference
+                  </button>
+                ) : (
+                  <form onSubmit={handleVerifyManualUtr} className="space-y-2 text-left bg-[#F7F7F5] p-3 rounded-lg border border-[#D9D9D9]">
+                    <div className="flex items-center justify-between">
+                      <label htmlFor="utr-input" className="text-[11px] font-semibold text-[#171717]">
+                        12-Digit UPI UTR Reference Number:
+                      </label>
+                      <button
+                        type="button"
+                        onClick={() => setShowUtrField(false)}
+                        className="text-[10px] text-[#666666] hover:text-[#171717]"
+                      >
+                        Hide
+                      </button>
+                    </div>
+                    <div className="flex gap-2">
+                      <input
+                        id="utr-input"
+                        type="text"
+                        value={manualUtr}
+                        onChange={(e) => setManualUtr(e.target.value)}
+                        placeholder="e.g. 428910294812"
+                        maxLength={16}
+                        className="flex-1 h-9 px-2.5 text-xs border border-[#D9D9D9] rounded font-mono focus:outline-none focus:border-[#2563EB]"
+                      />
+                      <button
+                        type="submit"
+                        disabled={isVerifyingUtr || !manualUtr.trim()}
+                        className="px-3 h-9 bg-[#171717] hover:bg-black disabled:bg-[#999999] text-[#FFFFFF] text-xs font-semibold rounded transition-colors"
+                      >
+                        {isVerifyingUtr ? 'Verifying...' : 'Verify UTR'}
+                      </button>
+                    </div>
+                    <p className="text-[10px] text-[#666666]">
+                      Found in your GPay / PhonePe / Paytm receipt details as &quot;UPI Ref ID&quot; or &quot;UTR&quot;.
+                    </p>
+                  </form>
+                )}
+              </div>
             </div>
 
             {/* Footer note */}
             <p className="text-[11px] text-center text-[#666666] pt-1 border-t border-[#D9D9D9]">
-              Secured by <strong>Razorpay</strong> · Extended <strong>2 hours</strong> hosting activated instantly on payment.
+              Secured by <strong>Razorpay</strong> &amp; <strong>UPI</strong> · Extended <strong>2 hours</strong> retention activated immediately.
             </p>
           </>
         )}

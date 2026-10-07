@@ -63,6 +63,88 @@ export async function createRazorpayOrder(
   return baseOrder;
 }
 
+const ACTIVE_ORDER_STORAGE_KEY = 'drophour_active_payment_order_v1';
+
+export interface StoredActiveOrder {
+  order: PaymentOrder;
+  filename: string;
+  amountInr: number;
+}
+
+/**
+ * Returns the active unexpired order for this file/amount if still within 3 minutes
+ */
+export function getActivePaymentOrder(filename: string, amountInr: number): PaymentOrder | null {
+  try {
+    const raw = sessionStorage.getItem(ACTIVE_ORDER_STORAGE_KEY);
+    if (!raw) return null;
+    const stored: StoredActiveOrder = JSON.parse(raw);
+    if (!stored || !stored.order) return null;
+
+    // Check expiry
+    const expiresAt = new Date(stored.order.expiresAt).getTime();
+    const now = Date.now();
+    if (expiresAt <= now) {
+      sessionStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+      return null;
+    }
+
+    // Check file and amount match
+    if (stored.filename === filename && stored.amountInr === amountInr) {
+      return stored.order;
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return null;
+}
+
+/**
+ * Persists the active payment order in session storage
+ */
+export function saveActivePaymentOrder(order: PaymentOrder, filename: string): void {
+  try {
+    const data: StoredActiveOrder = {
+      order,
+      filename,
+      amountInr: order.amountInr,
+    };
+    sessionStorage.setItem(ACTIVE_ORDER_STORAGE_KEY, JSON.stringify(data));
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Clears active payment order (e.g. after successful payment or user reset)
+ */
+export function clearActivePaymentOrder(): void {
+  try {
+    sessionStorage.removeItem(ACTIVE_ORDER_STORAGE_KEY);
+  } catch {
+    // Ignore storage errors
+  }
+}
+
+/**
+ * Get the current active order or create a new 3-minute order if expired/none exists
+ */
+export async function getOrCreateRazorpayOrder(
+  amountInr: number,
+  tierName: string,
+  filename: string
+): Promise<PaymentOrder> {
+  const existing = getActivePaymentOrder(filename, amountInr);
+  if (existing) {
+    return existing;
+  }
+
+  const newOrder = await createRazorpayOrder(amountInr, tierName, filename);
+  saveActivePaymentOrder(newOrder, filename);
+  return newOrder;
+}
+
+
 /**
  * Query Razorpay serverless status endpoint
  */
