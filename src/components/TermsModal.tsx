@@ -112,15 +112,15 @@ export const TermsModal: React.FC<TermsModalProps> = ({ isOpen, onClose }) => {
                 </div>
                 <div className="p-2 border border-[#D9D9D9] rounded bg-[#F7F7F5]">
                   <div className="font-bold text-[#171717]">50 - 100 MB</div>
-                  <div className="text-[11px] text-[#171717] font-semibold">₹10 · 2 Hr</div>
+                  <div className="text-[11px] text-[#171717] font-semibold">₹5 · 2 Hr</div>
                 </div>
                 <div className="p-2 border border-[#D9D9D9] rounded bg-[#F7F7F5]">
                   <div className="font-bold text-[#171717]">100 - 200 MB</div>
-                  <div className="text-[11px] text-[#171717] font-semibold">₹30 · 2 Hr</div>
+                  <div className="text-[11px] text-[#171717] font-semibold">₹10 · 2 Hr</div>
                 </div>
                 <div className="p-2 border border-[#D9D9D9] rounded bg-[#F7F7F5]">
                   <div className="font-bold text-[#171717]">200 - 999 MB</div>
-                  <div className="text-[11px] text-[#171717] font-semibold">₹50 · 2 Hr</div>
+                  <div className="text-[11px] text-[#171717] font-semibold">₹20 · 2 Hr</div>
                 </div>
               </div>
               <p className="text-[11px]">

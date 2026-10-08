@@ -20,7 +20,7 @@ export const handler: Handler = async (event: HandlerEvent) => {
 
   try {
     const body = JSON.parse(event.body || '{}');
-    const amountInr = Number(body.amountInr) || 10;
+    const amountInr = Number(body.amountInr) || 5;
     const orderCode = body.orderCode || `DH-${Date.now().toString().slice(-6)}`;
     const filename = body.filename || 'File Transfer';
 

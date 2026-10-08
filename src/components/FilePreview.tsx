@@ -98,7 +98,7 @@ export const FilePreview: React.FC<FilePreviewProps> = ({
         <div className="bg-[#FFFBEB] border border-[#FDE68A] p-3 rounded-md text-xs text-[#92400E] flex items-center justify-between">
           <div className="flex items-center gap-2">
             <Sparkles className="w-4 h-4 text-[#D97706] shrink-0" />
-            <span>Large file transfer (over 50MB): <strong>₹{pricing?.priceInr}</strong> via Razorpay / UPI QR code</span>
+            <span>Large file transfer (over 50MB): <strong>₹{pricing?.priceInr}</strong> via Razorpay Secure Payment</span>
           </div>
           <span className="text-[11px] font-bold bg-[#FEF3C7] px-2 py-0.5 rounded border border-[#FDE68A]/60">
             {pricing?.tierName}

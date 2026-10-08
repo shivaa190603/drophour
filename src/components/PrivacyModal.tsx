@@ -128,8 +128,8 @@ export const PrivacyModal: React.FC<PrivacyModalProps> = ({ isOpen, onClose }) =
                 5. Payment Data Isolation (Razorpay &amp; UPI)
               </h3>
               <p>
-                For files exceeding 50 MB, optional micro-payments (₹10, ₹30, ₹50) are handled
-                via Razorpay or direct bank UPI. DropHour <strong>never</strong> collects,
+                For files exceeding 50 MB, optional micro-payments (₹5, ₹10, ₹20) are handled
+                via Razorpay. DropHour <strong>never</strong> collects,
                 inspects, or stores credit card numbers, CVVs, net banking credentials, or UPI
                 PINs. All transactions execute within certified PCI-DSS compliant infrastructure.
               </p>

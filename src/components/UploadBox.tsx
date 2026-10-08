@@ -107,13 +107,13 @@ export const UploadBox: React.FC<UploadBoxProps> = ({ onFileSelected, disabled =
             Free: &lt; 50MB (1hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹10: 50–100MB (2hr)
+            ₹5: 50–100MB (2hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹30: 100–200MB (2hr)
+            ₹10: 100–200MB (2hr)
           </span>
           <span className="px-2 py-0.5 rounded bg-[#F7F7F5] text-[#171717] font-medium border border-[#D9D9D9]">
-            ₹50: 200–999MB (2hr)
+            ₹20: 200–999MB (2hr)
           </span>
         </div>
 

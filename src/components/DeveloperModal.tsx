@@ -128,7 +128,7 @@ export const DeveloperModal: React.FC<DeveloperModalProps> = ({
           <ul className="list-disc list-inside space-y-1 pl-1 text-[#171717]">
             <li><strong>Automated 1-Hour Life Cycle:</strong> Files strictly expire and auto-delete from Supabase Storage and database after 60 minutes.</li>
             <li><strong>5-Node Supabase Pool:</strong> Intelligent load balancing across up to 5 Supabase free-tier project databases for high-capacity files up to 999MB.</li>
-            <li><strong>Tiered Micro-Payments:</strong> Seamless Razorpay integration &amp; dynamic UPI QR code generator for 50MB+ transfers (₹10, ₹30, ₹50).</li>
+            <li><strong>Tiered Micro-Payments:</strong> Seamless Razorpay integration &amp; dynamic payment QR for 50MB+ transfers (₹5, ₹10, ₹20).</li>
           </ul>
         </div>
 
